@@ -1,0 +1,21 @@
+{
+  "name": "ripple",
+  "version": "0.0.1",
+  "description": "Experimental repl",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rkoeninger/ripple.git"
+  },
+  "author": "Robert Koeninger",
+  "bugs": {
+    "url": "https://github.com/rkoeninger/ripple/issues"
+  },
+  "homepage": "https://github.com/rkoeninger/ripple#readme",
+  "devDependencies": {
+    "typescript": "1.8.2"
+  }
+}

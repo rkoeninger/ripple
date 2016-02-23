@@ -1,0 +1,17 @@
+<html>
+	<head>
+		<script src="src/value.js"></script>
+		<script src="src/parser.js"></script>
+		<script src="src/eval.js"></script>
+		<script>
+		function parseIt() {
+			var text = document.getElementById("input-text").value;
+			console.log(parseAll(text));
+		}
+		</script>
+	</head>
+	<body>
+		<textarea id="input-text" rows="4" cols="50">(+ 1 2)</textarea>
+		<button id="parse-button" onclick="parseIt();">Parse</button>
+	</body>
+</html>
