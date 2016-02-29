@@ -8,10 +8,18 @@
 			var text = document.getElementById("input-text").value;
 			console.log(parseAll(text));
 		}
+		function runIt() {
+			var text = document.getElementById("input-text").value;
+			var asts = parseAll(text);
+			for (var i = 0; i < asts.length; ++i) {
+				console.log(rippleEval(asts[i]));
+			}
+		}
 		</script>
 	</head>
 	<body>
 		<textarea id="input-text" rows="4" cols="50">(+ 1 2)</textarea>
 		<button id="parse-button" onclick="parseIt();">Parse</button>
+		<button id="parse-button" onclick="runIt();">Run</button>
 	</body>
 </html>

@@ -26,3 +26,7 @@ function numberValue(n: number) {
 function symbolValue(s: string) {
 	return new Value("symbol", s);
 }
+
+function functionValue(f) {
+	return new Value("function", f);
+}
