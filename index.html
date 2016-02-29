@@ -10,10 +10,25 @@
 		}
 		function runIt() {
 			var text = document.getElementById("input-text").value;
+			var results = document.getElementById("results");
 			var asts = parseAll(text);
 			for (var i = 0; i < asts.length; ++i) {
-				console.log(rippleEval(asts[i]));
+				var result = resultDiv(printAst(asts[i]), asString(rippleEval(asts[i])));
+				results.appendChild(result);
 			}
+		}
+		function resultDiv(expr, res) {
+			var result = document.createElement("div");
+			var input = document.createElement("div");
+			var output = document.createElement("div");
+			result.appendChild(input);
+			result.appendChild(output);
+			result.className = "result";
+			input.className = "input-expr";
+			output.className = "output-value";
+			input.innerHTML = expr;
+			output.innerHTML = res;
+			return result;
 		}
 		</script>
 	</head>
@@ -21,5 +36,6 @@
 		<textarea id="input-text" rows="4" cols="50">(+ 1 2)</textarea>
 		<button id="parse-button" onclick="parseIt();">Parse</button>
 		<button id="parse-button" onclick="runIt();">Run</button>
+		<div id="results"></div>
 	</body>
 </html>

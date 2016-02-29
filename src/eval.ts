@@ -1,7 +1,7 @@
 
 var defines = {
-	"+": functionValue(function (args) { return args[0].value + args[1].value; }),
-	"log": functionValue(function (args) { return console.log(args[0].value); })
+	"+": functionValue(function (args) { return numberValue(args[0].value + args[1].value); }),
+	"log": functionValue(function(args) { console.log(args[0].value); return nullValue; })
 };
 
 function equalsSymbol(val, sym) {

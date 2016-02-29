@@ -8,6 +8,8 @@ class Value {
 	}
 }
 
+var nullValue = new Value("null", null);
+
 function stringValue(s: string) {
 	return new Value("string", s);
 }
@@ -29,4 +31,22 @@ function symbolValue(s: string) {
 
 function functionValue(f) {
 	return new Value("function", f);
+}
+
+function asString(v) {
+	if (v.kind === "null") {
+		return "null";
+	} else if (v.kind === "string") {
+		return v.value;
+	} else if (v.kind === "number") {
+		return v.value.toString();
+	} else if (v.kind === "boolean") {
+		return '"' + v.value.toString() + '"';
+	} else if (v.kind === "symbol") {
+		return v.value;
+	} else if (v.kind === "function") {
+		return "<function>";
+	}
+
+	return "unknown";
 }

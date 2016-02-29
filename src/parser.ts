@@ -37,7 +37,9 @@ function readStringLiteral(source: Source) {
 		skipOne(source);
 	}
 
-	return stringLiteral;
+	skipOne(source); // Skip over closing '\"'
+
+	return stringValue(stringLiteral);
 }
 
 function readLiteral(source: Source) {
@@ -55,7 +57,7 @@ function readLiteral(source: Source) {
 	} else if (unparsedLiteral.toLowerCase() === "true") {
 		return trueValue;
 	} else if (unparsedLiteral.toLowerCase() === "null") {
-		return null;
+		return nullValue;
 	}
 
 	return symbolValue(unparsedLiteral);
@@ -83,7 +85,7 @@ function parseOne(source: Source) {
 			skipOne(source); // Skip over ')'
 			return comboEnd;
 		case '\"':
-			skipOne(source); // Skip over '\"'
+			skipOne(source); // Skip over opening '\"'
 			return readStringLiteral(source);
 		default:
 			return readLiteral(source);
@@ -102,5 +104,31 @@ function parseAll(text: string) {
 		}
 
 		result.push(parseOne(source));
+	}
+}
+
+function printAst(ast) {
+	if (Object.prototype.toString.call(ast) === "[object Array]") {
+		var result = "(";
+
+		if (ast.length > 0) {
+			result = result + printAst(ast[0]);
+		}
+
+		for (var i = 1; i < ast.length; ++i) {
+			result = result + " " + printAst(ast[i]);
+		}
+
+		return result + ")";
+	} else if (ast.kind === "null") {
+		return "()";
+	} else if (ast.kind === "boolean") {
+		return ast.value.toString();
+	} else if (ast.kind === "number") {
+		return ast.value.toString();
+	} else if (ast.kind === "string") {
+		return '"' + ast.value + '"'; // TODO: need to escape chars
+	} else if (ast.kind === "symbol") {
+		return ast.value;
 	}
 }
