@@ -1,5 +1,6 @@
 <html>
 	<head>
+		<link href='https://fonts.googleapis.com/css?family=Source+Code+Pro' rel='stylesheet' type='text/css'>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.1/jquery.min.js"></script>
 		<script src="src/value.js"></script>
 		<script src="src/parser.js"></script>
@@ -40,25 +41,66 @@
 
 			for (var key in defines) {
 				if (defines.hasOwnProperty(key) && ! defines[key].isPrimitive) {
-					definesDiv.append(defineDiv(key, defines[key]));
+					definesDiv.append(defineDiv(key, asString(defines[key])));
 				}
 			}
 		}
 		function defineDiv(name, value) {
 			var nmDiv = $("<div></div>").addClass("define-name").text(name);
-			var valDiv = $("<div></div>").addClass("define-value").text(valDiv);
+			var valDiv = $("<div></div>").addClass("define-value").text(value);
 			var define = $("<div></div>").addClass("define").append(nmDiv).append(valDiv);
 			return define;
 		}
+		$(function () {
+			$("#input-text").keydown(function (e) {
+				if (e.ctrlKey) {
+					switch (e.keyCode) {
+						case 13: // Enter
+							runIt();
+							break;
+						case 46: // Delete
+							$("#input-text").val("");
+							break;
+					}
+				}
+			});
+		});
 		</script>
 		<style>
+			body {
+				font-family: 'Source Code Pro', 'Consolas', 'Courier New', monospace;
+				font-size: 12px;
+			}
+			#results, #defines {
+				float: left;
+				width: 40%;
+			}
+			.result, .define {
+				border-radius: 0.5em;
+				margin: 0.5em;
+			}
 			.result {
 				background-color: #eeeeff;
 				border: 1px solid #0000ff;
 			}
+			.result .input-expr, .result .output-value {
+				padding: 0.5em;
+			}
+			.result .input-expr {
+				border-bottom: 1px solid #0000ff;
+			}
 			.define {
 				background-color: #eeffee;
 				border: 1px solid #00ff00;
+			}
+			.define .define-name, .define .define-value {
+				padding: 0.5em;
+			}
+			.define .define-name {
+				border-bottom: 1px solid #00ff00;
+			}
+			.clear {
+				clear: both;
 			}
 		</style>
 	</head>
@@ -66,6 +108,7 @@
 		<textarea id="input-text" rows="4" cols="50">(+ 1 2)</textarea>
 		<button id="parse-button" onclick="parseIt();">Parse</button>
 		<button id="parse-button" onclick="runIt();">Run</button>
+		<div class="clear"></div>
 		<div id="results"></div>
 		<div id="defines"></div>
 	</body>
