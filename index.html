@@ -1,5 +1,6 @@
 <html>
 	<head>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.1/jquery.min.js"></script>
 		<script src="src/value.js"></script>
 		<script src="src/parser.js"></script>
 		<script src="src/eval.js"></script>
@@ -28,9 +29,18 @@
 			output.className = "output-value";
 			input.innerHTML = expr;
 			output.innerHTML = res;
+			$(result).click(function () {
+				$("#input-text").val(expr);
+			});
 			return result;
 		}
 		</script>
+		<style>
+			.result {
+				background-color: #eeeeff;
+				border: 1px solid #0000ff;
+			}
+		</style>
 	</head>
 	<body>
 		<textarea id="input-text" rows="4" cols="50">(+ 1 2)</textarea>
