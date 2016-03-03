@@ -2,9 +2,11 @@
 class Value {
 	kind: string;
 	value;
+	isPrimitive: boolean;
 	constructor(kind: string, value) {
 		this.kind = kind;
 		this.value = value;
+		this.isPrimitive = false;
 	}
 }
 
@@ -31,6 +33,12 @@ function symbolValue(s: string) {
 
 function functionValue(f) {
 	return new Value("function", f);
+}
+
+function primitiveFunction(f) {
+	var func = functionValue(f);
+	func.isPrimitive = true;
+	return func;
 }
 
 function asString(v) {

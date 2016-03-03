@@ -6,39 +6,59 @@
 		<script src="src/eval.js"></script>
 		<script>
 		function parseIt() {
-			var text = document.getElementById("input-text").value;
+			var text = $("#input-text").val();
 			console.log(parseAll(text));
 		}
 		function runIt() {
-			var text = document.getElementById("input-text").value;
-			var results = document.getElementById("results");
+			var text = $("#input-text").val();
+			var results = $("#results");
 			var asts = parseAll(text);
 			for (var i = 0; i < asts.length; ++i) {
 				var result = resultDiv(printAst(asts[i]), asString(rippleEval(asts[i])));
-				results.appendChild(result);
+				results.prepend(result);
 			}
+			updateDefines();
 		}
 		function resultDiv(expr, res) {
-			var result = document.createElement("div");
-			var input = document.createElement("div");
-			var output = document.createElement("div");
-			result.appendChild(input);
-			result.appendChild(output);
-			result.className = "result";
-			input.className = "input-expr";
-			output.className = "output-value";
-			input.innerHTML = expr;
-			output.innerHTML = res;
-			$(result).click(function () {
-				$("#input-text").val(expr);
-			});
+			var input = $("<div></div>")
+				.addClass("input-expr")
+				.text(expr);
+			var output = $("<div></div>")
+				.addClass("output-value")
+				.text(res);
+			var result = $("<div></div>")
+				.addClass("result")
+				.append(input)
+				.append(output)
+				.click(function () {
+					$("#input-text").val(expr);
+				});
 			return result;
+		}
+		function updateDefines() {
+			var definesDiv = $("#defines").empty();
+
+			for (var key in defines) {
+				if (defines.hasOwnProperty(key) && ! defines[key].isPrimitive) {
+					definesDiv.append(defineDiv(key, defines[key]));
+				}
+			}
+		}
+		function defineDiv(name, value) {
+			var nmDiv = $("<div></div>").addClass("define-name").text(name);
+			var valDiv = $("<div></div>").addClass("define-value").text(valDiv);
+			var define = $("<div></div>").addClass("define").append(nmDiv).append(valDiv);
+			return define;
 		}
 		</script>
 		<style>
 			.result {
 				background-color: #eeeeff;
 				border: 1px solid #0000ff;
+			}
+			.define {
+				background-color: #eeffee;
+				border: 1px solid #00ff00;
 			}
 		</style>
 	</head>
@@ -47,5 +67,6 @@
 		<button id="parse-button" onclick="parseIt();">Parse</button>
 		<button id="parse-button" onclick="runIt();">Run</button>
 		<div id="results"></div>
+		<div id="defines"></div>
 	</body>
 </html>
