@@ -16,6 +16,10 @@ function getSymbolName(val) {
 	throw new Error("Not a symbol");
 }
 
+function isTruthy(val) {
+	return !(val === null || val.kind === "null" || (val.kind === "boolean" && val.value === false));
+}
+
 function rippleEval(ast) {
 	if (ast === null) {
 		return null;
@@ -27,7 +31,16 @@ function rippleEval(ast) {
 		}
 
 		if (equalsSymbol(ast[0], "if")) {
-			return "special form";
+			var condition = ast[1];
+			var consequent = ast[2];
+			var alternative = ast[3];
+			var result = isTruthy(rippleEval(condition)) ? consequent : alternative
+			return rippleEval(result);
+		} else if (equalsSymbol(ast[0], "define")) {
+			var name = getSymbolName(ast[1]);
+			var value = rippleEval(ast[2])
+			defines[name] = value;
+			return value;
 		}
 
 		var evaledF = rippleEval(ast[0]);
