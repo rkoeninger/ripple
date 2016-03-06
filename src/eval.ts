@@ -39,7 +39,7 @@ function rippleEval(ast, locals) {
 	}
 
 	if (Object.prototype.toString.call(ast) === "[object Array]") {
-		var result, left, right;
+		var result, left, right, name, value, newLocals, frame;
 
 		if (ast.length === 0) {
 			return null;
@@ -66,10 +66,18 @@ function rippleEval(ast, locals) {
 					result = isTruthy(rippleEval(left, locals)) ? true : isTruthy(rippleEval(right, locals));
 					return booleanValue(result);
 				case "define":
-					var name = getSymbolName(ast[1]);
-					var value = rippleEval(ast[2], locals)
+					name = getSymbolName(ast[1]);
+					value = rippleEval(ast[2], locals);
 					defines[name] = value;
 					return value;
+				case "let":
+					name = getSymbolName(ast[1]);
+					value = rippleEval(ast[2], locals);
+					newLocals = locals.slice(0);
+					frame = {};
+					frame[name] = value;
+					newLocals.push(frame);
+					return rippleEval(ast[3], newLocals);
 				case "function":
 					var argExpr = ast[1];
 					var argNames = [];
@@ -78,8 +86,8 @@ function rippleEval(ast, locals) {
 					}
 					var bodyExpr = ast[2];
 					return functionValue(function (args) {
-						var newLocals = locals.slice(0);
-						var frame = {};
+						newLocals = locals.slice(0);
+						frame = {};
 						for (var k = 0; k < argNames.length; ++k) {
 							frame[argNames[k]] = args[k];
 						}
