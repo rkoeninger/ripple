@@ -104,11 +104,17 @@ function rippleEval(ast, locals) {
 			evaledArgs.push(rippleEval(ast[i], locals));
 		}
 
-		if (evaledF.kind !== "function") {
+		if (evaledF.kind === "function") {
+			return evaledF.value.call(null, evaledArgs);
+		} else if (evaledF.kind === "number" && ast.length === 3) {
+			var swap = evaledArgs[0];
+			evaledArgs[0] = evaledF;
+			evaledF = swap;
+			return evaledF.value.call(null, evaledArgs);
+		} else {
 			throw new Error("First element in combo must be a function");
 		}
 
-		return evaledF.value.call(null, evaledArgs);
 	}
 
 	if (ast.kind === "symbol") {
