@@ -4,6 +4,10 @@ var defines = {
 	"*": primitiveFunction(function(args) { return numberValue(args[0].value * args[1].value); }),
 	"-": primitiveFunction(function(args) { return numberValue(args[0].value - args[1].value); }),
 	"/": primitiveFunction(function(args) { return numberValue(args[0].value / args[1].value); }),
+	"<": primitiveFunction(function(args) { return booleanValue(args[0].value < args[1].value); }),
+	">": primitiveFunction(function(args) { return booleanValue(args[0].value > args[1].value); }),
+	"<=": primitiveFunction(function(args) { return booleanValue(args[0].value <= args[1].value); }),
+	">=": primitiveFunction(function(args) { return booleanValue(args[0].value >= args[1].value); }),
 	"not": primitiveFunction(function(args) { return booleanValue(!args[0].value); }),
 	"concat": primitiveFunction(function(args) { return stringValue(args[0].value.toString() + args[1].value.toString()); }),
 	"log": primitiveFunction(function(args) { console.log(args[0].value); return nullValue; })
@@ -114,7 +118,6 @@ function rippleEval(ast, locals) {
 		} else {
 			throw new Error("First element in combo must be a function");
 		}
-
 	}
 
 	if (ast.kind === "symbol") {
