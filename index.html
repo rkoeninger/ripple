@@ -65,6 +65,45 @@
 				}
 			});
 		});
+		function buildIt() {
+			var text = $("#input-text").val();
+			var asts = parseAll(text);
+			var artifact = $("#artifact");
+			artifact.empty();
+			if (asts.length > 0) {
+				var ast = asts[0];
+				atomCount = 0;
+				artifact.append($(build(ast, 0, atomCount)));
+			}
+		}
+		var atomCount = 0;
+		function build(ast, depth) {
+
+			if (isCombo(ast)) {
+				var d = buildDiv("combo combo-" + (depth % 4));
+
+				for (var i = 0; i < ast.length; ++i) {
+					d.appendChild(build(ast[i], depth + 1));
+				}
+
+				return d;
+			}
+
+			atomCount++;
+			var b = buildDiv("atom atom-" + (atomCount % 4));
+			b.innerHTML = printAst(ast);
+			return b;
+		}
+		function buildDiv(className) {
+			var d = document.createElement("div");
+			if (className) {
+				d.className = className;
+			}
+			return d;
+		}
+		function isCombo(ast) {
+			return Object.prototype.toString.call(ast) === "[object Array]";
+		}
 		</script>
 		<style>
 			body {
@@ -102,14 +141,51 @@
 			.clear {
 				clear: both;
 			}
+			#artifact {
+				clear: both;
+				width: 24em;
+			}
+			.combo {
+				padding-left: 1em;
+			}
+			.combo-0 {
+				background: #ffdddd;
+			}
+			.combo-1 {
+				background: #ffcccc;
+			}
+			.combo-2 {
+				background: #ffbbbb;
+			}
+			.combo-3 {
+				background: #ffaaaa;
+			}
+			.atom {
+				padding: 0.1em;
+				margin-bottom: 0.1em;
+			}
+			.atom-0 {
+				border-bottom: 1px solid #ff0000;
+			}
+			.atom-1 {
+				border-bottom: 1px solid #00ff00;
+			}
+			.atom-2 {
+				border-bottom: 1px solid #0000ff;
+			}
+			.atom-3 {
+				border-bottom: 1px solid #00ffff;
+			}
 		</style>
 	</head>
 	<body>
-		<textarea id="input-text" rows="4" cols="50">(+ 1 2)</textarea>
+		<textarea id="input-text" rows="4" cols="50">(define square (function (x) (* x x)))</textarea>
 		<button id="parse-button" onclick="parseIt();">Parse</button>
-		<button id="parse-button" onclick="runIt();">Run</button>
+		<button id="run-button" onclick="runIt();">Run</button>
+		<button id="build-button" onclick="buildIt();">Build</button>
 		<div class="clear"></div>
 		<div id="results"></div>
 		<div id="defines"></div>
+		<div id="artifact"></div>
 	</body>
 </html>
