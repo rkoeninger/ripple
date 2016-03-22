@@ -27,12 +27,14 @@ class RipLambda {
 }
 
 class RipPrimitive {
+	arity: number;
 	f: (any) => any;
-	constructor(f: (any) => any) {
+	constructor(arity: number, f: (any) => any) {
+		this.arity = arity;
 		this.f = f;
 	}
 	toString() {
-		return "<Primitive>"
+		return "<Primitive/" + this.arity + ">";
 	}
 }
 
@@ -201,21 +203,21 @@ function define(id: string, value: any) {
 	defines[id] = value;
 }
 
-function definePrimitive(id: string, f: (any) => any) {
-	define(id, new RipPrimitive(f));
+function definePrimitive(id: string, arity: number, f: (any) => any) {
+	define(id, new RipPrimitive(arity, f));
 }
 
-definePrimitive("+", (args) => args[0] + args[1]);
-definePrimitive("-", (args) => args[0] - args[1]);
-definePrimitive("*", (args) => args[0] * args[1]);
-definePrimitive("/", (args) => args[0] / args[1]);
-definePrimitive("<", (args) => args[0] < args[1]);
-definePrimitive(">", (args) => args[0] > args[1]);
-definePrimitive("<=", (args) => args[0] <= args[1]);
-definePrimitive(">=", (args) => args[0] >= args[1]);
-definePrimitive("not", (args) => !args[0]);
-definePrimitive("concat", (args) => (args[0] || "null").toString() + (args[1] || "null").toString());
-definePrimitive("log", (args) => console.log(args[0]));
+definePrimitive("+", 2, args => args[0] + args[1]);
+definePrimitive("-", 2, args => args[0] - args[1]);
+definePrimitive("*", 2, args => args[0] * args[1]);
+definePrimitive("/", 2, args => args[0] / args[1]);
+definePrimitive("<", 2, args => args[0] < args[1]);
+definePrimitive(">", 2, args => args[0] > args[1]);
+definePrimitive("<=", 2, args => args[0] <= args[1]);
+definePrimitive(">=", 2, args => args[0] >= args[1]);
+definePrimitive("not", 1, args => !args[0]);
+definePrimitive("concat", 2, args => (args[0] || "null").toString() + (args[1] || "null").toString());
+definePrimitive("log", 1, args => console.log(args[0]));
 
 function getSymbolName(val) {
 	if (isSymbol(val)) {
@@ -282,6 +284,18 @@ function ripEvalFunction(expr, stack) {
 	return new RipLambda(argNames, bodyExpr);
 }
 
+function specialForm(id: string) {
+	switch (id) {
+		case "if":       return ripEvalIf;
+		case "and":      return ripEvalAnd;
+		case "or":       return ripEvalOr;
+		case "define":   return ripEvalDefine;
+		case "let":      return ripEvalLet;
+		case "function": return ripEvalFunction;
+		default:         return undefined;
+	}
+}
+
 function ripApply(ast, stack) {
 	var evaledF = rippleEval(ast[0], stack);
 	var evaledArgs = [];
@@ -291,9 +305,17 @@ function ripApply(ast, stack) {
 	}
 
 	if (isPrimitive(evaledF)) {
+		if (evaledArgs.length !== evaledF.arity) {
+			throw new Error("function takes " + evaledF.arity + " args, but given " + evaledArgs.length);
+		}
+
 		return evaledF.f.call(null, evaledArgs);
 	}
 	else if (isLambda(evaledF)) {
+		if (evaledArgs.length !== evaledF.args.length) {
+			throw new Error("function takes " + evaledF.args.length + " args, but given " + evaledArgs.length);
+		}
+
 		var argNames = evaledF.args;
 		var newLocals = stack.slice(0);
 		var frame = {};
@@ -316,14 +338,9 @@ function rippleEval(expr: any, stack: any[]): any {
 		if (expr.length === 0) { return null; }
 
 		if (isSymbol(expr[0])) {
-			switch (expr[0].id) {
-				case "if": return ripEvalIf(expr, stack);
-				case "and": return ripEvalAnd(expr, stack);
-				case "or": return ripEvalOr(expr, stack);
-				case "define": return ripEvalDefine(expr, stack);
-				case "let": return ripEvalLet(expr, stack);
-				case "function": return ripEvalFunction(expr, stack);
-			}
+			var evalSpecial = specialForm(expr[0].id);
+
+			if (! isUndefined(evalSpecial)) { return evalSpecial(expr, stack); }
 		}
 
 		return ripApply(expr, stack);
