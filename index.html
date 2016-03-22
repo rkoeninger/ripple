@@ -2,9 +2,7 @@
 	<head>
 		<link href='https://fonts.googleapis.com/css?family=Source+Code+Pro' rel='stylesheet' type='text/css'>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.1/jquery.min.js"></script>
-		<script src="js/value.js"></script>
-		<script src="js/parser.js"></script>
-		<script src="js/eval.js"></script>
+		<script src="js/ripple.js"></script>
 		<script>
 		function parseIt() {
 			var text = $("#input-text").val();
@@ -15,7 +13,7 @@
 			var results = $("#results");
 			var asts = parseAll(text);
 			for (var i = 0; i < asts.length; ++i) {
-				var result = resultDiv(printAst(asts[i]), asString(rippleEval(asts[i])));
+				var result = resultDiv(formatAst(asts[i]), formatAst(rippleEval(asts[i])));
 				results.prepend(result);
 			}
 			updateDefines();
@@ -40,8 +38,8 @@
 			var definesDiv = $("#defines").empty();
 
 			for (var key in defines) {
-				if (defines.hasOwnProperty(key) && ! defines[key].isPrimitive) {
-					definesDiv.append(defineDiv(key, asString(defines[key])));
+				if (defines.hasOwnProperty(key) && ! (defines[key] instanceof RipPrimitive)) {
+					definesDiv.append(defineDiv(key, formatAst(defines[key])));
 				}
 			}
 		}
@@ -91,7 +89,7 @@
 
 			atomCount++;
 			var b = buildDiv("atom atom-" + (atomCount % 4));
-			b.innerHTML = printAst(ast);
+			b.innerHTML = formatAst(ast);
 			return b;
 		}
 		function buildDiv(className) {
