@@ -19,3 +19,19 @@ Experimental repl
 
 (replicate 5 "hi")
 ```
+
+Dynamic scoping test:
+
+```
+(define l (function () (log y)))
+
+(let y "hi" (l))
+```
+
+Lexical scoping test:
+
+```
+(define k (function (x) (function () (log x))))
+
+((k "hi"))
+```

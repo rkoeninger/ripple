@@ -4,9 +4,7 @@ class RipSymbol {
 	constructor(id: string) {
 		this.id = id;
 	}
-	toString() {
-		return this.id;
-	}
+	toString = (): string => this.id;
 }
 
 class RipLambda {
@@ -16,7 +14,7 @@ class RipLambda {
 		this.args = args;
 		this.body = body;
 	}
-	toString() {
+	toString(): string {
 		var fullAst = [
 			new RipSymbol("function"),
 			this.args.map(x => new RipSymbol(x)),
@@ -35,30 +33,19 @@ class RipPrimitive {
 		this.arity = arity;
 		this.f = f;
 	}
-	toString() {
-		return this.id;
-	}
+	toString = (): string => this.id;
 }
 
-function isUndefined(x) { return typeof x === "undefined"; }
-
-function isNull(x) { return x === null; }
-
-function isBoolean(x) { return typeof x === "boolean"; }
-
-function isTruthy(x) { return x !== null && x !== false; }
-
-function isNumber(x) { return typeof x === "number"; }
-
-function isString(x) { return typeof x === "string"; }
-
-function isSymbol(x) { return x instanceof RipSymbol; }
-
-function isPrimitive(x) { return x instanceof RipPrimitive; }
-
-function isLambda(x) { return x instanceof RipLambda; }
-
-function isArray(x) { return Object.prototype.toString.call(x) === "[object Array]"; }
+function isUndefined(x: any): boolean { return typeof x === "undefined"; }
+function isNull     (x: any): boolean { return x === null; }
+function isBoolean  (x: any): boolean { return typeof x === "boolean"; }
+function isTruthy   (x: any): boolean { return x !== null && x !== false; }
+function isNumber   (x: any): boolean { return typeof x === "number"; }
+function isString   (x: any): boolean { return typeof x === "string"; }
+function isSymbol   (x: any): boolean { return x instanceof RipSymbol; }
+function isPrimitive(x: any): boolean { return x instanceof RipPrimitive; }
+function isLambda   (x: any): boolean { return x instanceof RipLambda; }
+function isArray    (x: any): boolean { return Array.isArray(x); }
 
 class Source {
 	text: string;
@@ -70,13 +57,13 @@ class Source {
 	isDone(): boolean {
 		return this.text.length <= this.pos;
 	}
-	current() {
+	current(): string {
 		return this.isDone() ? null : this.text.charAt(this.pos);
 	}
-	skipOne() {
+	skipOne(): void {
 		this.pos++;
 	}
-	skipWhiteSpace() {
+	skipWhiteSpace(): void {
 		while (!this.isDone() && /\s/.test(this.current())) {
 			this.skipOne();
 		}
@@ -112,9 +99,7 @@ class Source {
 	parseOne(): any {
 		this.skipWhiteSpace();
 
-		if (this.isDone()) {
-			throw new Error("Unexpected end of file");
-		}
+		if (this.isDone()) { throw new Error("Unexpected end of file"); }
 
 		switch (this.current()) {
 			case '(':
@@ -138,37 +123,29 @@ class Source {
 	}
 	parseAll(): any[] {
 		var result = [];
+		this.skipWhiteSpace();
 
-		while (true) {
-			this.skipWhiteSpace();
-
-			if (this.isDone()) {
-				return result;
-			}
-
+		while (! this.isDone()) {
 			result.push(this.parseOne());
+			this.skipWhiteSpace();
 		}
+
+		return result;
 	}
 }
 
-function parseAllText(text: string) {
+function parseAllText(text: string): any[] {
 	return new Source(text).parseAll();
 }
 
-function parseOneText(text: string) {
+function parseOneText(text: string): any {
 	return new Source(text).parseOne();
 }
 
 function formatAst(ast: any): string {
-	if (isArray(ast)) {
-		return "(" + ast.map(formatAst).join(" ") + ")";
-	}
-	if (isNull(ast)) {
-		return "null";
-	}
-	if (isString(ast)) {
-		return "\"" + ast + "\"";
-	}
+	if (isArray(ast)) { return "(" + ast.map(formatAst).join(" ") + ")"; }
+	if (isNull(ast)) { return "null"; }
+	if (isString(ast)) { return "\"" + ast + "\""; }
 	return ast.toString(); 
 }
 
@@ -212,23 +189,19 @@ definePrimitive("concat", 2, args => (args[0] || "null").toString() + (args[1] |
 definePrimitive("log", 1, args => console.log(args[0]));
 
 function assertType(typeCheck: (any) => boolean, value: any): void {
-	if (! typeCheck(value)) {
-		throw new Error("Value was not of the expected type");
-	}
+	if (! typeCheck(value)) { throw new Error("Value was not of the expected type"); }
 }
 
 function assertArity(type: string, expected: number, actual: number): void {
-	if (expected !== actual) {
-		throw new Error(type + " takes " + expected + " args, but given " + actual);
-	}
+	if (expected !== actual) { throw new Error(type + " takes " + expected + " args, but given " + actual); }
 }
 
-function getSymbolName(value) {
+function getSymbolName(value: any): string {
 	assertType(isSymbol, value);
 	return value.id;
 }
 
-function stackLookup(id, stack) {
+function stackLookup(id: string, stack: any[]): any {
 	for (var m = stack.length - 1; m >= 0; --m) {
 		if (stack[m].hasOwnProperty(id)) {
 			return stack[m][id];
@@ -242,7 +215,7 @@ function stackLookup(id, stack) {
 	throw new Error("Unrecognized symbol");
 }
 
-function pushStackFrame(params, values, stack) {
+function pushStackFrame(params: string[], values: any[], stack: any[]): any[] {
 	var frame = {};
 	params.map((_, i) => frame[params[i]] = values[i]);
 	var stack = stack.slice(0);
@@ -250,32 +223,32 @@ function pushStackFrame(params, values, stack) {
 	return stack;
 }
 
-function ripEvalIf(expr, stack) {
+function ripEvalIf(expr: any, stack: any[]): any {
 	assertArity("If expression", 3, expr.length);
 	var conditionValue = isTruthy(rippleEval(expr[0], stack));
 	return rippleEval(conditionValue ? expr[1] : expr[2], stack);
 }
 
-function ripEvalAnd(expr, stack) {
+function ripEvalAnd(expr: any, stack: any[]): any {
 	assertArity("And expression", 2, expr.length);
 	var leftValue = isTruthy(rippleEval(expr[0], stack));
 	return leftValue ? rippleEval(expr[1], stack) : false;
 }
 
-function ripEvalOr(expr, stack) {
+function ripEvalOr(expr: any, stack: any[]): any {
 	assertArity("Or expression", 2, expr.length);
 	var leftValue = isTruthy(rippleEval(expr[0], stack));
 	return leftValue ? true : rippleEval(expr[1], stack);
 }
 
-function ripEvalDefine(expr, stack) {
+function ripEvalDefine(expr: any, stack: any[]): any {
 	assertArity("Define expression", 2, expr.length);
 	var name = getSymbolName(expr[0]);
 	var value = rippleEval(expr[1], stack);
 	return define(name, value);
 }
 
-function ripEvalLet(expr, stack) {
+function ripEvalLet(expr: any, stack: any[]): any {
 	assertArity("Let expression", 3, expr.length);
 	var name = getSymbolName(expr[0]);
 	var value = rippleEval(expr[1], stack);
@@ -283,12 +256,12 @@ function ripEvalLet(expr, stack) {
 	return rippleEval(expr[2], stack);
 }
 
-function ripEvalFunction(expr, stack) {
+function ripEvalFunction(expr: any, stack: any[]): any {
 	assertArity("Function expression", 2, expr.length);
 	return new RipLambda(expr[0].map(getSymbolName), expr[1]);
 }
 
-function specialForm(id: string) {
+function specialForm(id: string): any {
 	switch (id) {
 		case "if":       return ripEvalIf;
 		case "and":      return ripEvalAnd;
@@ -319,9 +292,7 @@ function ripApply(ast: any, stack: any[]): any {
 	throw new Error("First element in combo must be a function");
 }
 
-function rippleEval(expr: any, stack: any[]): any {
-	if (isNull(stack) || isUndefined(stack)) { stack = []; }
-
+function rippleEval(expr: any, stack: any[] = []): any {
 	if (isNull(expr)) { return null; }
 
 	if (isArray(expr)) {
