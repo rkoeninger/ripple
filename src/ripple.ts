@@ -27,60 +27,38 @@ class RipLambda {
 }
 
 class RipPrimitive {
+	id: string;
 	arity: number;
 	f: (any) => any;
-	constructor(arity: number, f: (any) => any) {
+	constructor(id: string, arity: number, f: (any) => any) {
+		this.id = id;
 		this.arity = arity;
 		this.f = f;
 	}
 	toString() {
-		return "<Primitive/" + this.arity + ">";
+		return this.id;
 	}
 }
 
-function isUndefined(x) {
-	return typeof x === "undefined";
-}
+function isUndefined(x) { return typeof x === "undefined"; }
 
-function isNull(x) {
-	return typeof x === null;
-}
+function isNull(x) { return x === null; }
 
-function isBoolean(x) {
-	return typeof x === "boolean";
-}
+function isBoolean(x) { return typeof x === "boolean"; }
 
-function isFalsy(val) {
-	return val === null || val.value === false;
-}
+function isTruthy(x) { return x !== null && x !== false; }
 
-function isTruthy(val) {
-	return !isFalsy(val);
-}
+function isNumber(x) { return typeof x === "number"; }
 
-function isNumber(x) {
-	return typeof x === "number"
-}
+function isString(x) { return typeof x === "string"; }
 
-function isString(x) {
-	return typeof x === "string"
-}
+function isSymbol(x) { return x instanceof RipSymbol; }
 
-function isSymbol(x) {
-	return x instanceof RipSymbol;
-}
+function isPrimitive(x) { return x instanceof RipPrimitive; }
 
-function isPrimitive(x) {
-	return x instanceof RipPrimitive;
-}
+function isLambda(x) { return x instanceof RipLambda; }
 
-function isLambda(x) {
-	return x instanceof RipLambda;
-}
-
-function isArray(x) {
-	return Object.prototype.toString.call(x) === "[object Array]";
-}
+function isArray(x) { return Object.prototype.toString.call(x) === "[object Array]"; }
 
 class Source {
 	text: string;
@@ -104,17 +82,15 @@ class Source {
 		}
 	}
 	readStringLiteral(): string {
-		var stringLiteral = "";
+		var startingPos = this.pos;
 
 		while (this.current() && this.current() !== '\"') {
 			// TODO: does not handle escape chars
-			stringLiteral = stringLiteral + this.current();
 			this.skipOne();
 		}
 
 		this.skipOne(); // Skip over closing '\"'
-
-		return stringLiteral;
+		return this.text.substring(startingPos, this.pos - 1);
 	}
 	readLiteral(): any {
 		var unparsedLiteral = "";
@@ -124,17 +100,14 @@ class Source {
 			this.skipOne();
 		}
 
-		if (/^\d/.test(unparsedLiteral)) {
-			return parseFloat(unparsedLiteral);
-		} else if (unparsedLiteral.toLowerCase() === "false") {
-			return false;
-		} else if (unparsedLiteral.toLowerCase() === "true") {
-			return true;
-		} else if (unparsedLiteral.toLowerCase() === "null") {
-			return null;
-		}
+		if (/^\d/.test(unparsedLiteral)) { return parseFloat(unparsedLiteral); }
 
-		return new RipSymbol(unparsedLiteral);
+		switch (unparsedLiteral) {
+			case "false": return false;
+			case "true":  return true;
+			case "null":  return null;
+			default:      return new RipSymbol(unparsedLiteral);
+		}
 	}
 	parseOne(): any {
 		this.skipWhiteSpace();
@@ -186,26 +159,43 @@ function parseOneText(text: string) {
 	return new Source(text).parseOne();
 }
 
-function formatAst(ast: any): any {
+function formatAst(ast: any): string {
 	if (isArray(ast)) {
 		return "(" + ast.map(formatAst).join(" ") + ")";
-	} else if (isNull(ast)) {
-		return "()";
-	} else {
-		return ast.toString();
 	}
+	if (isNull(ast)) {
+		return "null";
+	}
+	if (isString(ast)) {
+		return "\"" + ast + "\"";
+	}
+	return ast.toString(); 
 }
 
 var defines = {};
 
-function define(id: string, value: any) {
+function define(id: string, value: any): any {
 	defines[id] = value;
+	return value;
 }
 
-function definePrimitive(id: string, arity: number, f: (any) => any) {
-	define(id, new RipPrimitive(arity, f));
+function definePrimitive(id: string, arity: number, f: (any) => any): any {
+	return define(id, new RipPrimitive(id, arity, f));
 }
 
+definePrimitive("number?", 1, args => isNumber(args[0]));
+definePrimitive("string?", 1, args => isString(args[0]));
+definePrimitive("boolean?", 1, args => isBoolean(args[0]));
+definePrimitive("symbol?", 1, args => isSymbol(args[0]));
+definePrimitive("function?", 1, args => isLambda(args[0]) || isPrimitive(args[0]));
+definePrimitive("array?", 1, args => isArray(args[0]));
+definePrimitive("null?", 1, args => isNull(args[0]));
+definePrimitive("arity", 1, args => args[0].arity || args[0].args.length);
+definePrimitive("symbol", 1, args => new RipSymbol(args[0]));
+definePrimitive("array", 0, args => []);
+definePrimitive("push", 2, args => args[0].push(args[1]));
+definePrimitive("get", 2, args => args[0][args[1]]);
+definePrimitive("set", 3, args => args[0][args[1]] = args[2]);
 definePrimitive("+", 2, args => args[0] + args[1]);
 definePrimitive("-", 2, args => args[0] - args[1]);
 definePrimitive("*", 2, args => args[0] * args[1]);
@@ -214,16 +204,28 @@ definePrimitive("<", 2, args => args[0] < args[1]);
 definePrimitive(">", 2, args => args[0] > args[1]);
 definePrimitive("<=", 2, args => args[0] <= args[1]);
 definePrimitive(">=", 2, args => args[0] >= args[1]);
+definePrimitive("=", 2, args => args[0] === args[1]);
+definePrimitive("mod", 2, args => args[0] % args[1]);
+definePrimitive("negate", 1, args => args[0] * -1);
 definePrimitive("not", 1, args => !args[0]);
 definePrimitive("concat", 2, args => (args[0] || "null").toString() + (args[1] || "null").toString());
 definePrimitive("log", 1, args => console.log(args[0]));
 
-function getSymbolName(val) {
-	if (isSymbol(val)) {
-		return val.id;
+function assertType(typeCheck: (any) => boolean, value: any): void {
+	if (! typeCheck(value)) {
+		throw new Error("Value was not of the expected type");
 	}
+}
 
-	throw new Error("Not a symbol");
+function assertArity(type: string, expected: number, actual: number): void {
+	if (expected !== actual) {
+		throw new Error(type + " takes " + expected + " args, but given " + actual);
+	}
+}
+
+function getSymbolName(value) {
+	assertType(isSymbol, value);
+	return value.id;
 }
 
 function stackLookup(id, stack) {
@@ -240,47 +242,50 @@ function stackLookup(id, stack) {
 	throw new Error("Unrecognized symbol");
 }
 
+function pushStackFrame(params, values, stack) {
+	var frame = {};
+	params.map((_, i) => frame[params[i]] = values[i]);
+	var stack = stack.slice(0);
+	stack.push(frame);
+	return stack;
+}
+
 function ripEvalIf(expr, stack) {
-	var conditionResult = isTruthy(rippleEval(expr, stack));
-	var consequent = conditionResult ? expr[2] : expr[3];
-	return rippleEval(consequent, stack);
+	assertArity("If expression", 3, expr.length);
+	var conditionValue = isTruthy(rippleEval(expr[0], stack));
+	return rippleEval(conditionValue ? expr[1] : expr[2], stack);
 }
 
 function ripEvalAnd(expr, stack) {
-	var leftResult = isTruthy(rippleEval(expr[1], stack));
-	return leftResult ? rippleEval(expr[2], stack) : false;
+	assertArity("And expression", 2, expr.length);
+	var leftValue = isTruthy(rippleEval(expr[0], stack));
+	return leftValue ? rippleEval(expr[1], stack) : false;
 }
 
 function ripEvalOr(expr, stack) {
-	var leftResult = isTruthy(rippleEval(expr[1], stack));
-	return leftResult ? true : rippleEval(expr[2], stack);
+	assertArity("Or expression", 2, expr.length);
+	var leftValue = isTruthy(rippleEval(expr[0], stack));
+	return leftValue ? true : rippleEval(expr[1], stack);
 }
 
 function ripEvalDefine(expr, stack) {
-	var id = getSymbolName(expr[1]);
-	var value = rippleEval(expr[2], stack);
-	define(id, value);
-	return value;
+	assertArity("Define expression", 2, expr.length);
+	var name = getSymbolName(expr[0]);
+	var value = rippleEval(expr[1], stack);
+	return define(name, value);
 }
 
 function ripEvalLet(expr, stack) {
-	var name = getSymbolName(expr[1]);
-	var value = rippleEval(expr[2], stack);
-	var newLocals = stack.slice(0);
-	var frame = {};
-	frame[name] = value;
-	newLocals.push(frame);
-	return rippleEval(expr[3], newLocals);
+	assertArity("Let expression", 3, expr.length);
+	var name = getSymbolName(expr[0]);
+	var value = rippleEval(expr[1], stack);
+	stack = pushStackFrame([name], [value], stack);
+	return rippleEval(expr[2], stack);
 }
 
 function ripEvalFunction(expr, stack) {
-	var argExpr = expr[1];
-	var argNames = [];
-	for (var j = 0; j < expr[1].length; ++j) {
-		argNames[j] = getSymbolName(argExpr[j]);
-	}
-	var bodyExpr = expr[2];
-	return new RipLambda(argNames, bodyExpr);
+	assertArity("Function expression", 2, expr.length);
+	return new RipLambda(expr[0].map(getSymbolName), expr[1]);
 }
 
 function specialForm(id: string) {
@@ -295,37 +300,23 @@ function specialForm(id: string) {
 	}
 }
 
-function ripApply(ast, stack) {
-	var evaledF = rippleEval(ast[0], stack);
-	var evaledArgs = [];
+function ripApply(ast: any, stack: any[]): any {
+	var all = ast.map(x => rippleEval(x, stack));
+	var first = all[0];
+	var rest = all.slice(1);
 
-	for (var i = 1; i < ast.length; ++i) {
-		evaledArgs.push(rippleEval(ast[i], stack));
+	if (isPrimitive(first)) {
+		assertArity("Function", first.arity, rest.length);
+		return first.f.call(null, rest);
 	}
 
-	if (isPrimitive(evaledF)) {
-		if (evaledArgs.length !== evaledF.arity) {
-			throw new Error("function takes " + evaledF.arity + " args, but given " + evaledArgs.length);
-		}
-
-		return evaledF.f.call(null, evaledArgs);
+	if (isLambda(first)) {
+		assertArity("Function", rest.length, first.args.length);
+		stack = pushStackFrame(first.args, rest, stack);
+		return rippleEval(first.body, stack);
 	}
-	else if (isLambda(evaledF)) {
-		if (evaledArgs.length !== evaledF.args.length) {
-			throw new Error("function takes " + evaledF.args.length + " args, but given " + evaledArgs.length);
-		}
 
-		var argNames = evaledF.args;
-		var newLocals = stack.slice(0);
-		var frame = {};
-		for (var k = 0; k < argNames.length; ++k) {
-			frame[argNames[k]] = evaledArgs[k];
-		}
-		newLocals.push(frame);
-		return rippleEval(evaledF.body, newLocals);
-	} else {
-		throw new Error("First element in combo must be a function");
-	}
+	throw new Error("First element in combo must be a function");
 }
 
 function rippleEval(expr: any, stack: any[]): any {
@@ -339,7 +330,7 @@ function rippleEval(expr: any, stack: any[]): any {
 		if (isSymbol(expr[0])) {
 			var evalSpecial = specialForm(expr[0].id);
 
-			if (! isUndefined(evalSpecial)) { return evalSpecial(expr, stack); }
+			if (! isUndefined(evalSpecial)) { return evalSpecial(expr.slice(1), stack); }
 		}
 
 		return ripApply(expr, stack);
