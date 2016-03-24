@@ -7,23 +7,6 @@ class RipSymbol {
 	toString = (): string => this.id;
 }
 
-class RipLambda {
-	args: string[];
-	body: any;
-	constructor(args: string[], body: any) {
-		this.args = args;
-		this.body = body;
-	}
-	toString(): string {
-		var fullAst = [
-			new RipSymbol("function"),
-			this.args.map(x => new RipSymbol(x)),
-			this.body
-		];
-		return formatAst(fullAst);
-	}
-}
-
 class RipPrimitive {
 	id: string;
 	arity: number;
@@ -34,6 +17,21 @@ class RipPrimitive {
 		this.f = f;
 	}
 	toString = (): string => this.id;
+}
+
+class RipLambda {
+	args: string[];
+	body: any;
+	stack: any[];
+	constructor(args: string[], body: any, stack: any[]) {
+		this.args = args;
+		this.body = body;
+		this.stack = stack;
+	}
+	toString = (): string => formatAst([
+		new RipSymbol("function"),
+		this.args.map(x => new RipSymbol(x)),
+		this.body]);
 }
 
 function isUndefined(x: any): boolean { return typeof x === "undefined"; }
@@ -143,8 +141,8 @@ function parseOneText(text: string): any {
 }
 
 function formatAst(ast: any): string {
-	if (isArray(ast)) { return "(" + ast.map(formatAst).join(" ") + ")"; }
 	if (isNull(ast)) { return "null"; }
+	if (isArray(ast)) { return "(" + ast.map(formatAst).join(" ") + ")"; }
 	if (isString(ast)) { return "\"" + ast + "\""; }
 	return ast.toString(); 
 }
@@ -208,18 +206,18 @@ function stackLookup(id: string, stack: any[]): any {
 		}
 	}
 
-	if (defines.hasOwnProperty(id)) {
-		return defines[id];
-	}
+	if (defines.hasOwnProperty(id)) { return defines[id]; }
 
-	throw new Error("Unrecognized symbol");
+	throw new Error("Symbol " + id + " not recognized");
 }
 
 function pushStackFrame(params: string[], values: any[], stack: any[]): any[] {
-	var frame = {};
-	params.map((_, i) => frame[params[i]] = values[i]);
-	var stack = stack.slice(0);
-	stack.push(frame);
+	if (params.length > 0) {
+		var frame = {};
+		params.forEach((_, i) => frame[params[i]] = values[i]);
+		var stack = stack.slice(0);
+		stack.push(frame);
+	}
 	return stack;
 }
 
@@ -258,19 +256,7 @@ function ripEvalLet(expr: any, stack: any[]): any {
 
 function ripEvalFunction(expr: any, stack: any[]): any {
 	assertArity("Function expression", 2, expr.length);
-	return new RipLambda(expr[0].map(getSymbolName), expr[1]);
-}
-
-function specialForm(id: string): any {
-	switch (id) {
-		case "if":       return ripEvalIf;
-		case "and":      return ripEvalAnd;
-		case "or":       return ripEvalOr;
-		case "define":   return ripEvalDefine;
-		case "let":      return ripEvalLet;
-		case "function": return ripEvalFunction;
-		default:         return undefined;
-	}
+	return new RipLambda(expr[0].map(getSymbolName), expr[1], stack);
 }
 
 function ripApply(ast: any, stack: any[]): any {
@@ -299,9 +285,16 @@ function rippleEval(expr: any, stack: any[] = []): any {
 		if (expr.length === 0) { return null; }
 
 		if (isSymbol(expr[0])) {
-			var evalSpecial = specialForm(expr[0].id);
+			var rest = expr.slice(1);
 
-			if (! isUndefined(evalSpecial)) { return evalSpecial(expr.slice(1), stack); }
+			switch (expr[0].id) {
+				case "if":       return ripEvalIf      (rest, stack);
+				case "and":      return ripEvalAnd     (rest, stack);
+				case "or":       return ripEvalOr      (rest, stack);
+				case "define":   return ripEvalDefine  (rest, stack);
+				case "let":      return ripEvalLet     (rest, stack);
+				case "function": return ripEvalFunction(rest, stack);
+			}
 		}
 
 		return ripApply(expr, stack);
