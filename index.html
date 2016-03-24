@@ -6,12 +6,12 @@
 		<script>
 		function parseIt() {
 			var text = $("#input-text").val();
-			console.log(parseAll(text));
+			console.log(parseAllText(text));
 		}
 		function runIt() {
 			var text = $("#input-text").val();
 			var results = $("#results");
-			var asts = parseAll(text);
+			var asts = parseAllText(text);
 			for (var i = 0; i < asts.length; ++i) {
 				var result = resultDiv(formatAst(asts[i]), formatAst(rippleEval(asts[i])));
 				results.prepend(result);
@@ -65,7 +65,7 @@
 		});
 		function buildIt() {
 			var text = $("#input-text").val();
-			var asts = parseAll(text);
+			var asts = parseAllText(text);
 			var artifact = $("#artifact");
 			artifact.empty();
 			if (asts.length > 0) {

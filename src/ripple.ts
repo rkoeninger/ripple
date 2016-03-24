@@ -89,102 +89,101 @@ class Source {
 		this.text = text;
 		this.pos = 0;
 	}
-}
-
-function isDone(source: Source): boolean {
-	return source.text.length <= source.pos;
-}
-
-function current(source: Source): any {
-	return isDone(source) ? null : source.text.charAt(source.pos);
-}
-
-function skipOne(source: Source): void {
-	source.pos++;
-}
-
-function skipWhiteSpace(source: Source): void {
-	while (!isDone(source) && /\s/.test(current(source))) {
-		skipOne(source);
+	isDone(): boolean {
+		return this.text.length <= this.pos;
 	}
-}
-
-function readStringLiteral(source: Source) {
-	var stringLiteral = "";
-
-	while (current(source) && current(source) !== '\"') {
-		// TODO: does not handle escape chars
-		stringLiteral = stringLiteral + current(source);
-		skipOne(source);
+	current() {
+		return this.isDone() ? null : this.text.charAt(this.pos);
 	}
-
-	skipOne(source); // Skip over closing '\"'
-
-	return stringLiteral;
-}
-
-function readLiteral(source: Source): any {
-	var unparsedLiteral = "";
-
-	while (current(source) && current(source) !== ')' && current(source) !== '(' && /\S/.test(current(source))) {
-		unparsedLiteral = unparsedLiteral + current(source);
-		skipOne(source);
+	skipOne() {
+		this.pos++;
 	}
-
-	if (/^\d/.test(unparsedLiteral)) {
-		return parseFloat(unparsedLiteral);
-	} else if (unparsedLiteral.toLowerCase() === "false") {
-		return false;
-	} else if (unparsedLiteral.toLowerCase() === "true") {
-		return true;
-	} else if (unparsedLiteral.toLowerCase() === "null") {
-		return null;
+	skipWhiteSpace() {
+		while (!this.isDone() && /\s/.test(this.current())) {
+			this.skipOne();
+		}
 	}
+	readStringLiteral(): string {
+		var stringLiteral = "";
 
-	return new RipSymbol(unparsedLiteral);
-}
-
-function parseOne(source: Source): any {
-	skipWhiteSpace(source);
-
-	if (isDone(source)) {
-		throw new Error("Unexpected end of file");
-	}
-
-	switch (current(source)) {
-		case '(':
-			skipOne(source); // Skip over '('
-			var children = [];
-
-			for (var child = parseOne(source); ! isUndefined(child); child = parseOne(source)) {
-				children.push(child);
-			}
-
-			return children;
-		case ')':
-			skipOne(source); // Skip over ')'
-			return undefined;
-		case '\"':
-			skipOne(source); // Skip over opening '\"'
-			return readStringLiteral(source);
-		default:
-			return readLiteral(source);
-	}
-}
-
-function parseAll(text: string): any {
-	var source = new Source(text);
-	var result = [];
-
-	while (true) {
-		skipWhiteSpace(source);
-
-		if (isDone(source)) {
-			return result;
+		while (this.current() && this.current() !== '\"') {
+			// TODO: does not handle escape chars
+			stringLiteral = stringLiteral + this.current();
+			this.skipOne();
 		}
 
-		result.push(parseOne(source));
+		this.skipOne(); // Skip over closing '\"'
+
+		return stringLiteral;
 	}
+	readLiteral(): any {
+		var unparsedLiteral = "";
+
+		while (this.current() && this.current() !== ')' && this.current() !== '(' && /\S/.test(this.current())) {
+			unparsedLiteral = unparsedLiteral + this.current();
+			this.skipOne();
+		}
+
+		if (/^\d/.test(unparsedLiteral)) {
+			return parseFloat(unparsedLiteral);
+		} else if (unparsedLiteral.toLowerCase() === "false") {
+			return false;
+		} else if (unparsedLiteral.toLowerCase() === "true") {
+			return true;
+		} else if (unparsedLiteral.toLowerCase() === "null") {
+			return null;
+		}
+
+		return new RipSymbol(unparsedLiteral);
+	}
+	parseOne(): any {
+		this.skipWhiteSpace();
+
+		if (this.isDone()) {
+			throw new Error("Unexpected end of file");
+		}
+
+		switch (this.current()) {
+			case '(':
+				this.skipOne(); // Skip over '('
+				var children = [];
+
+				for (var child = this.parseOne(); !isUndefined(child); child = this.parseOne()) {
+					children.push(child);
+				}
+
+				return children;
+			case ')':
+				this.skipOne(); // Skip over ')'
+				return undefined;
+			case '\"':
+				this.skipOne(); // Skip over opening '\"'
+				return this.readStringLiteral();
+			default:
+				return this.readLiteral();
+		}
+	}
+	parseAll(): any[] {
+		var result = [];
+
+		while (true) {
+			this.skipWhiteSpace();
+
+			if (this.isDone()) {
+				return result;
+			}
+
+			result.push(this.parseOne());
+		}
+	}
+}
+
+function parseAllText(text: string) {
+	return new Source(text).parseAll();
+}
+
+function parseOneText(text: string) {
+	return new Source(text).parseOne();
 }
 
 function formatAst(ast: any): any {
