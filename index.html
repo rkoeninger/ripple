@@ -13,7 +13,12 @@
 			var results = $("#results");
 			var asts = parseAllText(text);
 			for (var i = 0; i < asts.length; ++i) {
-				var result = resultDiv(formatAst(asts[i]), formatAst(rippleEval(asts[i])));
+				var result;
+				try {
+					result = resultDiv(formatAst(asts[i]), formatAst(rippleEval(asts[i])));
+				} catch (e) {
+					result = errorDiv(formatAst(asts[i]), e.toString());
+				}
 				results.prepend(result);
 			}
 			updateDefines();
@@ -27,6 +32,22 @@
 				.text(res);
 			var result = $("<div></div>")
 				.addClass("result")
+				.append(input)
+				.append(output)
+				.click(function () {
+					$("#input-text").val(expr);
+				});
+			return result;
+		}
+		function errorDiv(expr, res) {
+			var input = $("<div></div>")
+				.addClass("input-expr")
+				.text(expr);
+			var output = $("<div></div>")
+				.addClass("error-message")
+				.text(res);
+			var result = $("<div></div>")
+				.addClass("error-result")
 				.append(input)
 				.append(output)
 				.click(function () {
@@ -112,13 +133,23 @@
 				float: left;
 				width: 40%;
 			}
-			.result, .define {
+			.error-result, .result, .define {
 				border-radius: 0.5em;
 				margin: 0.5em;
+			}
+			.error-result {
+				background-color: #ffeeee;
+				border: 1px solid #ff0000;
 			}
 			.result {
 				background-color: #eeeeff;
 				border: 1px solid #0000ff;
+			}
+			.error-result .input-expr, .error-result .error-message {
+				padding: 0.5em;
+			}
+			.error-result .input-expr {
+				border-bottom: 1px solid #ff0000;
 			}
 			.result .input-expr, .result .output-value {
 				padding: 0.5em;

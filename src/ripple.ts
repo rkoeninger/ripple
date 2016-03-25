@@ -1,4 +1,14 @@
 
+class Cons {
+	head: any;
+	tail: any;
+	constructor(head: any, tail: any) {
+		this.head = head;
+		this.tail = tail;
+	}
+	toString = (): string => "(" + formatAst(this.head) + " " + formatAst(this.tail) + ")";
+}
+
 class RipSymbol {
 	id: string;
 	constructor(id: string) {
@@ -20,17 +30,17 @@ class RipPrimitive {
 }
 
 class RipLambda {
-	args: string[];
+	params: string[];
 	body: any;
 	stack: any[];
-	constructor(args: string[], body: any, stack: any[]) {
-		this.args = args;
+	constructor(params: string[], body: any, stack: any[]) {
+		this.params = params;
 		this.body = body;
 		this.stack = stack;
 	}
 	toString = (): string => formatAst([
 		new RipSymbol("function"),
-		this.args.map(x => new RipSymbol(x)),
+		this.params.map(x => new RipSymbol(x)),
 		this.body]);
 }
 
@@ -44,46 +54,42 @@ function isSymbol   (x: any): boolean { return x instanceof RipSymbol; }
 function isPrimitive(x: any): boolean { return x instanceof RipPrimitive; }
 function isLambda   (x: any): boolean { return x instanceof RipLambda; }
 function isArray    (x: any): boolean { return Array.isArray(x); }
+function isCons     (x: any): boolean { return x instanceof Cons; }
 
 class Source {
-	text: string;
-	pos: number;
+	private text: string;
+	private pos: number;
 	constructor(text: string) {
 		this.text = text;
 		this.pos = 0;
 	}
-	isDone(): boolean {
+	private isDone(): boolean {
 		return this.text.length <= this.pos;
 	}
-	current(): string {
+	private current(): string {
 		return this.isDone() ? null : this.text.charAt(this.pos);
 	}
-	skipOne(): void {
+	private skipOne(): void {
 		this.pos++;
 	}
-	skipWhiteSpace(): void {
+	private skipWhiteSpace(): void {
 		while (!this.isDone() && /\s/.test(this.current())) {
 			this.skipOne();
 		}
 	}
-	readStringLiteral(): string {
+	private skipWhile(f: (string) => boolean): number {
 		var startingPos = this.pos;
-
-		while (this.current() && this.current() !== '\"') {
-			// TODO: does not handle escape chars
-			this.skipOne();
-		}
-
+		while (f(this.current())) { this.skipOne(); }
+		return startingPos;
+	}
+	private readStringLiteral(): string {
+		var startingPos = this.skipWhile(x => x && x !== '\"');
 		this.skipOne(); // Skip over closing '\"'
 		return this.text.substring(startingPos, this.pos - 1);
 	}
-	readLiteral(): any {
-		var unparsedLiteral = "";
-
-		while (this.current() && this.current() !== ')' && this.current() !== '(' && /\S/.test(this.current())) {
-			unparsedLiteral = unparsedLiteral + this.current();
-			this.skipOne();
-		}
+	private readLiteral(): any {
+		var startingPos = this.skipWhile(x => x && x !== ')' && x !== ')' && /\S/.test(x));
+		var unparsedLiteral = this.text.substring(startingPos, this.pos);
 
 		if (/^\d/.test(unparsedLiteral)) { return parseFloat(unparsedLiteral); }
 
@@ -141,6 +147,7 @@ function parseOneText(text: string): any {
 }
 
 function formatAst(ast: any): string {
+	if (isUndefined(ast)) { throw new Error("Can't print undefined value"); }
 	if (isNull(ast)) { return "null"; }
 	if (isArray(ast)) { return "(" + ast.map(formatAst).join(" ") + ")"; }
 	if (isString(ast)) { return "\"" + ast + "\""; }
@@ -158,33 +165,37 @@ function definePrimitive(id: string, arity: number, f: (any) => any): any {
 	return define(id, new RipPrimitive(id, arity, f));
 }
 
-definePrimitive("number?", 1, args => isNumber(args[0]));
-definePrimitive("string?", 1, args => isString(args[0]));
-definePrimitive("boolean?", 1, args => isBoolean(args[0]));
-definePrimitive("symbol?", 1, args => isSymbol(args[0]));
+definePrimitive("null?",     1, args => isNull(args[0]));
+definePrimitive("=",         2, args => args[0] === args[1]);
 definePrimitive("function?", 1, args => isLambda(args[0]) || isPrimitive(args[0]));
-definePrimitive("array?", 1, args => isArray(args[0]));
-definePrimitive("null?", 1, args => isNull(args[0]));
-definePrimitive("arity", 1, args => args[0].arity || args[0].args.length);
-definePrimitive("symbol", 1, args => new RipSymbol(args[0]));
-definePrimitive("array", 0, args => []);
-definePrimitive("push", 2, args => args[0].push(args[1]));
-definePrimitive("get", 2, args => args[0][args[1]]);
-definePrimitive("set", 3, args => args[0][args[1]] = args[2]);
-definePrimitive("+", 2, args => args[0] + args[1]);
-definePrimitive("-", 2, args => args[0] - args[1]);
-definePrimitive("*", 2, args => args[0] * args[1]);
-definePrimitive("/", 2, args => args[0] / args[1]);
-definePrimitive("<", 2, args => args[0] < args[1]);
-definePrimitive(">", 2, args => args[0] > args[1]);
-definePrimitive("<=", 2, args => args[0] <= args[1]);
-definePrimitive(">=", 2, args => args[0] >= args[1]);
-definePrimitive("=", 2, args => args[0] === args[1]);
-definePrimitive("mod", 2, args => args[0] % args[1]);
-definePrimitive("negate", 1, args => args[0] * -1);
-definePrimitive("not", 1, args => !args[0]);
-definePrimitive("concat", 2, args => (args[0] || "null").toString() + (args[1] || "null").toString());
-definePrimitive("log", 1, args => console.log(args[0]));
+definePrimitive("arity",     1, args => args[0].arity || args[0].args.length);
+definePrimitive("symbol?",   1, args => isSymbol(args[0]));
+definePrimitive("symbol",    1, args => new RipSymbol(args[0]));
+definePrimitive("cons?",     1, args => isCons(args[0]));
+definePrimitive("cons",      2, args => new Cons(args[0], args[1]));
+definePrimitive("head",      1, args => args[0].head);
+definePrimitive("tail",      1, args => args[0].tail);
+definePrimitive("array?",    1, args => isArray(args[0]));
+definePrimitive("array",     0, args => []);
+definePrimitive("push",      2, args => args[0].push(args[1]));
+definePrimitive("get",       2, args => args[0][args[1]]);
+definePrimitive("set",       3, args => args[0][args[1]] = args[2]);
+definePrimitive("number?",   1, args => isNumber(args[0]));
+definePrimitive("+",         2, args => args[0] + args[1]);
+definePrimitive("-",         2, args => args[0] - args[1]);
+definePrimitive("*",         2, args => args[0] * args[1]);
+definePrimitive("/",         2, args => args[0] / args[1]);
+definePrimitive("<",         2, args => args[0] < args[1]);
+definePrimitive(">",         2, args => args[0] > args[1]);
+definePrimitive("<=",        2, args => args[0] <= args[1]);
+definePrimitive(">=",        2, args => args[0] >= args[1]);
+definePrimitive("mod",       2, args => args[0] % args[1]);
+definePrimitive("negate",    1, args => args[0] * -1);
+definePrimitive("boolean?",  1, args => isBoolean(args[0]));
+definePrimitive("not",       1, args => !args[0]);
+definePrimitive("string?",   1, args => isString(args[0]));
+definePrimitive("concat",    2, args => (args[0] || "null").toString() + (args[1] || "null").toString());
+definePrimitive("log",       1, args => { console.log(args[0]); return null; });
 
 function assertType(typeCheck: (any) => boolean, value: any): void {
 	if (! typeCheck(value)) { throw new Error("Value was not of the expected type"); }
@@ -194,16 +205,14 @@ function assertArity(type: string, expected: number, actual: number): void {
 	if (expected !== actual) { throw new Error(type + " takes " + expected + " args, but given " + actual); }
 }
 
-function getSymbolName(value: any): string {
+function symbolId(value: any): string {
 	assertType(isSymbol, value);
 	return value.id;
 }
 
 function stackLookup(id: string, stack: any[]): any {
 	for (var m = stack.length - 1; m >= 0; --m) {
-		if (stack[m].hasOwnProperty(id)) {
-			return stack[m][id];
-		}
+		if (stack[m].hasOwnProperty(id)) { return stack[m][id]; }
 	}
 
 	if (defines.hasOwnProperty(id)) { return defines[id]; }
@@ -211,7 +220,7 @@ function stackLookup(id: string, stack: any[]): any {
 	throw new Error("Symbol " + id + " not recognized");
 }
 
-function pushStackFrame(params: string[], values: any[], stack: any[]): any[] {
+function pushLocalStack(params: string[], values: any[], stack: any[]): any[] {
 	if (params.length > 0) {
 		var frame = {};
 		params.forEach((_, i) => frame[params[i]] = values[i]);
@@ -241,37 +250,33 @@ function ripEvalOr(expr: any, stack: any[]): any {
 
 function ripEvalDefine(expr: any, stack: any[]): any {
 	assertArity("Define expression", 2, expr.length);
-	var name = getSymbolName(expr[0]);
+	var name = symbolId(expr[0]);
 	var value = rippleEval(expr[1], stack);
 	return define(name, value);
 }
 
 function ripEvalLet(expr: any, stack: any[]): any {
 	assertArity("Let expression", 3, expr.length);
-	var name = getSymbolName(expr[0]);
+	var name = symbolId(expr[0]);
 	var value = rippleEval(expr[1], stack);
-	stack = pushStackFrame([name], [value], stack);
+	stack = pushLocalStack([name], [value], stack);
 	return rippleEval(expr[2], stack);
 }
 
 function ripEvalFunction(expr: any, stack: any[]): any {
 	assertArity("Function expression", 2, expr.length);
-	return new RipLambda(expr[0].map(getSymbolName), expr[1], stack);
+	return new RipLambda(expr[0].map(symbolId), expr[1], stack);
 }
 
-function ripApply(ast: any, stack: any[]): any {
-	var all = ast.map(x => rippleEval(x, stack));
-	var first = all[0];
-	var rest = all.slice(1);
-
+function ripApply(first: any, rest: any[]): any {
 	if (isPrimitive(first)) {
 		assertArity("Function", first.arity, rest.length);
 		return first.f.call(null, rest);
 	}
 
 	if (isLambda(first)) {
-		assertArity("Function", rest.length, first.args.length);
-		stack = pushStackFrame(first.args, rest, stack);
+		assertArity("Function", first.params.length, rest.length);
+		var stack = pushLocalStack(first.params, rest, first.stack);
 		return rippleEval(first.body, stack);
 	}
 
@@ -283,11 +288,11 @@ function rippleEval(expr: any, stack: any[] = []): any {
 
 	if (isArray(expr)) {
 		if (expr.length === 0) { return null; }
+		var first = expr[0];
+		var rest = expr.slice(1);
 
-		if (isSymbol(expr[0])) {
-			var rest = expr.slice(1);
-
-			switch (expr[0].id) {
+		if (isSymbol(first)) {
+			switch (first.id) {
 				case "if":       return ripEvalIf      (rest, stack);
 				case "and":      return ripEvalAnd     (rest, stack);
 				case "or":       return ripEvalOr      (rest, stack);
@@ -297,7 +302,9 @@ function rippleEval(expr: any, stack: any[] = []): any {
 			}
 		}
 
-		return ripApply(expr, stack);
+		var firstValue = rippleEval(first, stack);
+		var restValues = rest.map(x => rippleEval(x, stack));
+		return ripApply(firstValue, restValues);
 	}
 
 	if (isSymbol(expr)) { return stackLookup(expr.id, stack); }
