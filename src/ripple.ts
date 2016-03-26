@@ -41,7 +41,7 @@ class RipLambda {
 	toString = (): string => formatAst([
 		new RipSymbol("function"),
 		this.params.map(x => new RipSymbol(x)),
-		this.body]);
+		this.body], this.stack);
 }
 
 function isUndefined(x: any): boolean { return typeof x === "undefined"; }
@@ -55,6 +55,15 @@ function isPrimitive(x: any): boolean { return x instanceof RipPrimitive; }
 function isLambda   (x: any): boolean { return x instanceof RipLambda; }
 function isArray    (x: any): boolean { return Array.isArray(x); }
 function isCons     (x: any): boolean { return x instanceof Cons; }
+
+function formatAst(ast: any, stack: any[] = []): string {
+	if (isUndefined(ast)) { throw new Error("Can't print undefined value"); }
+	if (isNull(ast)) { return "null"; }
+	if (isArray(ast)) { return "(" + ast.map(x => formatAst(x, stack)).join(" ") + ")"; }
+	if (isString(ast)) { return "\"" + ast + "\""; }
+	if (isSymbol(ast) && stack && stack.length > 0) { return formatAst(stackLookup(ast, stack)); }
+	return ast.toString();
+}
 
 class Source {
 	private text: string;
@@ -146,14 +155,6 @@ function parseOneText(text: string): any {
 	return new Source(text).parseOne();
 }
 
-function formatAst(ast: any): string {
-	if (isUndefined(ast)) { throw new Error("Can't print undefined value"); }
-	if (isNull(ast)) { return "null"; }
-	if (isArray(ast)) { return "(" + ast.map(formatAst).join(" ") + ")"; }
-	if (isString(ast)) { return "\"" + ast + "\""; }
-	return ast.toString(); 
-}
-
 var defines = {};
 
 function define(id: string, value: any): any {
@@ -214,9 +215,13 @@ function stackLookup(id: string, stack: any[]): any {
 	for (var m = stack.length - 1; m >= 0; --m) {
 		if (stack[m].hasOwnProperty(id)) { return stack[m][id]; }
 	}
+	return undefined;
+}
 
+function symbolLookup(id: string, stack: any[]): any {
+	var value = stackLookup(id, stack);
+	if (!isUndefined(value)) { return value; }
 	if (defines.hasOwnProperty(id)) { return defines[id]; }
-
 	throw new Error("Symbol " + id + " not recognized");
 }
 
@@ -307,7 +312,7 @@ function rippleEval(expr: any, stack: any[] = []): any {
 		return ripApply(firstValue, restValues);
 	}
 
-	if (isSymbol(expr)) { return stackLookup(expr.id, stack); }
+	if (isSymbol(expr)) { return symbolLookup(expr.id, stack); }
 
 	return expr;
 }

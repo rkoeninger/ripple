@@ -208,7 +208,9 @@
 		</style>
 	</head>
 	<body>
-		<textarea id="input-text" rows="4" cols="50">(define square (function (x) (* x x)))</textarea>
+		<textarea id="input-text" rows="4" cols="50">(define say (function (x) (function () (log x))))
+
+(say "hello")</textarea>
 		<button id="parse-button" onclick="parseIt();">Parse</button>
 		<button id="run-button" onclick="runIt();">Run</button>
 		<button id="build-button" onclick="buildIt();">Build</button>
