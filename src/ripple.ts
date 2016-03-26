@@ -61,7 +61,10 @@ function formatAst(ast: any, stack: any[] = []): string {
 	if (isNull(ast)) { return "null"; }
 	if (isArray(ast)) { return "(" + ast.map(x => formatAst(x, stack)).join(" ") + ")"; }
 	if (isString(ast)) { return "\"" + ast + "\""; }
-	if (isSymbol(ast) && stack && stack.length > 0) { return formatAst(stackLookup(ast, stack)); }
+	if (isSymbol(ast) && stack.length > 0) {
+		var value = stackLookup(ast, stack);
+		return isUndefined(value) ? ast.toString() : formatAst(value);
+	}
 	return ast.toString();
 }
 
