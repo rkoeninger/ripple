@@ -1,80 +1,80 @@
 body {
-	font-family: 'Source Code Pro', 'Consolas', 'Courier New', monospace;
-	font-size: 12px;
+    font-family: 'Source Code Pro', 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
 }
 #results, #defines {
-	float: left;
-	width: 40%;
+    float: left;
+    width: 40%;
 }
 .error-result, .result, .define {
-	border-radius: 0.5em;
-	margin: 0.5em;
+    border-radius: 0.5em;
+    margin: 0.5em;
 }
 .error-result {
-	background-color: #ffeeee;
-	border: 1px solid #ff0000;
+    background-color: #ffeeee;
+    border: 1px solid #ff0000;
 }
 .result {
-	background-color: #eeeeff;
-	border: 1px solid #0000ff;
+    background-color: #eeeeff;
+    border: 1px solid #0000ff;
 }
 .error-result .input-expr, .error-result .error-message {
-	padding: 0.5em;
+    padding: 0.5em;
 }
 .error-result .input-expr {
-	border-bottom: 1px solid #ff0000;
+    border-bottom: 1px solid #ff0000;
 }
 .result .input-expr, .result .output-value {
-	padding: 0.5em;
+    padding: 0.5em;
 }
 .result .input-expr {
-	border-bottom: 1px solid #0000ff;
+    border-bottom: 1px solid #0000ff;
 }
 .define {
-	background-color: #eeffee;
-	border: 1px solid #00ff00;
+    background-color: #eeffee;
+    border: 1px solid #00ff00;
 }
 .define .define-name, .define .define-value {
-	padding: 0.5em;
+    padding: 0.5em;
 }
 .define .define-name {
-	border-bottom: 1px solid #00ff00;
+    border-bottom: 1px solid #00ff00;
 }
 .clear {
-	clear: both;
+    clear: both;
 }
 #artifact {
-	clear: both;
-	width: 24em;
+    clear: both;
+    width: 24em;
 }
 .combo {
-	padding-left: 1em;
+    padding-left: 1em;
 }
 .combo-0 {
-	background: #ffdddd;
+    background: #ffdddd;
 }
 .combo-1 {
-	background: #ffcccc;
+    background: #ffcccc;
 }
 .combo-2 {
-	background: #ffbbbb;
+    background: #ffbbbb;
 }
 .combo-3 {
-	background: #ffaaaa;
+    background: #ffaaaa;
 }
 .atom {
-	padding: 0.1em;
-	margin-bottom: 0.1em;
+    padding: 0.1em;
+    margin-bottom: 0.1em;
 }
 .atom-0 {
-	border-bottom: 1px solid #ff0000;
+    border-bottom: 1px solid #ff0000;
 }
 .atom-1 {
-	border-bottom: 1px solid #00ff00;
+    border-bottom: 1px solid #00ff00;
 }
 .atom-2 {
-	border-bottom: 1px solid #0000ff;
+    border-bottom: 1px solid #0000ff;
 }
 .atom-3 {
-	border-bottom: 1px solid #00ffff;
+    border-bottom: 1px solid #00ffff;
 }
