@@ -241,42 +241,42 @@ module ripple {
         return stack;
     }
 
-    function evalIf(expr: any, stack: any[]): any {
-        assertArity("If expression", 3, expr.length);
-        var conditionValue = isTruthy(eval(expr[0], stack));
-        return eval(conditionValue ? expr[1] : expr[2], stack);
+    function evalIf(exprs: any[], stack: any[]): any {
+        assertArity("If expression", 3, exprs.length);
+        var conditionValue = isTruthy(eval(exprs[0], stack));
+        return eval(conditionValue ? exprs[1] : exprs[2], stack);
     }
 
-    function evalAnd(expr: any, stack: any[]): any {
-        assertArity("And expression", 2, expr.length);
-        var leftValue = isTruthy(eval(expr[0], stack));
-        return leftValue ? eval(expr[1], stack) : false;
+    function evalAnd(exprs: any[], stack: any[]): any {
+        assertArity("And expression", 2, exprs.length);
+        var leftValue = isTruthy(eval(exprs[0], stack));
+        return leftValue ? eval(exprs[1], stack) : false;
     }
 
-    function evalOr(expr: any, stack: any[]): any {
-        assertArity("Or expression", 2, expr.length);
-        var leftValue = isTruthy(eval(expr[0], stack));
-        return leftValue ? true : eval(expr[1], stack);
+    function evalOr(exprs: any[], stack: any[]): any {
+        assertArity("Or expression", 2, exprs.length);
+        var leftValue = isTruthy(eval(exprs[0], stack));
+        return leftValue ? true : eval(exprs[1], stack);
     }
 
-    function evalDefine(expr: any, stack: any[]): any {
-        assertArity("Define expression", 2, expr.length);
-        var name = symbolId(expr[0]);
-        var value = eval(expr[1], stack);
+    function evalDefine(exprs: any[], stack: any[]): any {
+        assertArity("Define expression", 2, exprs.length);
+        var name = symbolId(exprs[0]);
+        var value = eval(exprs[1], stack);
         return define(name, value);
     }
 
-    function evalLet(expr: any, stack: any[]): any {
-        assertArity("Let expression", 3, expr.length);
-        var name = symbolId(expr[0]);
-        var value = eval(expr[1], stack);
+    function evalLet(exprs: any[], stack: any[]): any {
+        assertArity("Let expression", 3, exprs.length);
+        var name = symbolId(exprs[0]);
+        var value = eval(exprs[1], stack);
         stack = pushLocalStack([name], [value], stack);
-        return eval(expr[2], stack);
+        return eval(exprs[2], stack);
     }
 
-    function evalFunction(expr: any, stack: any[]): any {
-        assertArity("Function expression", 2, expr.length);
-        return new Lambda(expr[0].map(symbolId), expr[1], stack);
+    function evalFunction(exprs: any[], stack: any[]): any {
+        assertArity("Function expression", 2, exprs.length);
+        return new Lambda(exprs[0].map(symbolId), exprs[1], stack);
     }
 
     function array2cons(a: any[]): any {
@@ -295,9 +295,19 @@ module ripple {
         return result;
     }
 
-    function evalStack(stack: any[]): any {
+    function evalStack(expr: any[], stack: any[]): any {
         return array2cons(stack.map(map2cons));
     }
+
+    var specials = {
+        "if": evalIf,
+        "and": evalAnd,
+        "or": evalOr,
+        "define": evalDefine,
+        "let": evalLet,
+        "function": evalFunction,
+        "stack": evalStack
+    };
 
     function apply(first: any, rest: any[]): any {
         if (isPrimitive(first)) {
@@ -320,16 +330,8 @@ module ripple {
             var first = expr[0];
             var rest = expr.slice(1);
 
-            if (isSymbol(first)) {
-                switch (first.id) {
-                    case "if": return evalIf(rest, stack);
-                    case "and": return evalAnd(rest, stack);
-                    case "or": return evalOr(rest, stack);
-                    case "define": return evalDefine(rest, stack);
-                    case "let": return evalLet(rest, stack);
-                    case "function": return evalFunction(rest, stack);
-                    case "stack": return evalStack(stack);
-                }
+            if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
+                return specials[first.id](rest, stack);
             }
 
             var firstValue = eval(first, stack);
