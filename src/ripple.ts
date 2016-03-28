@@ -1,17 +1,17 @@
 
 module ripple {
 
-    export class Cons {
+    class Cons {
         head: any;
         tail: any;
         constructor(head: any, tail: any) {
             this.head = head;
             this.tail = tail;
         }
-        toString = (): string => "(" + formatAst(this.head) + " " + formatAst(this.tail) + ")";
+        toString = (): string => "(" + format(this.head) + " " + format(this.tail) + ")";
     }
 
-    export class RipSymbol {
+    class Symbol {
         id: string;
         constructor(id: string) {
             this.id = id;
@@ -19,7 +19,7 @@ module ripple {
         toString = (): string => this.id;
     }
 
-    export class RipPrimitive {
+    class Primitive {
         id: string;
         arity: number;
         f: (any) => any;
@@ -31,7 +31,7 @@ module ripple {
         toString = (): string => this.id;
     }
 
-    export class RipLambda {
+    class Lambda {
         params: string[];
         body: any;
         stack: any[];
@@ -40,9 +40,9 @@ module ripple {
             this.body = body;
             this.stack = stack;
         }
-        toString = (): string => formatAst([
-            new RipSymbol("function"),
-            this.params.map(x => new RipSymbol(x)),
+        toString = (): string => format([
+            new Symbol("function"),
+            this.params.map(x => new Symbol(x)),
             this.body], this.stack);
     }
 
@@ -52,20 +52,20 @@ module ripple {
     function isTruthy(x: any): boolean { return x !== null && x !== false; }
     function isNumber(x: any): boolean { return typeof x === "number"; }
     function isString(x: any): boolean { return typeof x === "string"; }
-    function isSymbol(x: any): boolean { return x instanceof RipSymbol; }
+    function isSymbol(x: any): boolean { return x instanceof Symbol; }
     function isCons(x: any): boolean { return x instanceof Cons; }
-    function isLambda(x: any): boolean { return x instanceof RipLambda; }
-    export function isPrimitive(x: any): boolean { return x instanceof RipPrimitive; }
+    function isLambda(x: any): boolean { return x instanceof Lambda; }
+    export function isPrimitive(x: any): boolean { return x instanceof Primitive; }
     export function isArray(x: any): boolean { return Array.isArray(x); }
 
-    export function formatAst(ast: any, stack: any[] = []): string {
+    export function format(ast: any, stack: any[] = []): string {
         if (isUndefined(ast)) { throw new Error("Can't print undefined value"); }
         if (isNull(ast)) { return "null"; }
-        if (isArray(ast)) { return "(" + ast.map(x => formatAst(x, stack)).join(" ") + ")"; }
+        if (isArray(ast)) { return "(" + ast.map(x => format(x, stack)).join(" ") + ")"; }
         if (isString(ast)) { return "\"" + ast + "\""; }
         if (isSymbol(ast) && stack.length > 0) {
             var value = stackLookup(ast, stack);
-            return isUndefined(value) ? ast.toString() : formatAst(value);
+            return isUndefined(value) ? ast.toString() : format(value);
         }
         return ast.toString();
     }
@@ -111,7 +111,7 @@ module ripple {
                 case "false": return false;
                 case "true": return true;
                 case "null": return null;
-                default: return new RipSymbol(unparsedLiteral);
+                default: return new Symbol(unparsedLiteral);
             }
         }
         parseOne(): any {
@@ -168,7 +168,7 @@ module ripple {
     }
 
     function definePrimitive(id: string, arity: number, f: (any) => any): any {
-        return define(id, new RipPrimitive(id, arity, f));
+        return define(id, new Primitive(id, arity, f));
     }
 
     definePrimitive("null?", 1, args => isNull(args[0]));
@@ -176,7 +176,7 @@ module ripple {
     definePrimitive("function?", 1, args => isLambda(args[0]) || isPrimitive(args[0]));
     definePrimitive("arity", 1, args => args[0].arity || args[0].args.length);
     definePrimitive("symbol?", 1, args => isSymbol(args[0]));
-    definePrimitive("symbol", 1, args => new RipSymbol(args[0]));
+    definePrimitive("symbol", 1, args => new Symbol(args[0]));
     definePrimitive("cons?", 1, args => isCons(args[0]));
     definePrimitive("cons", 2, args => new Cons(args[0], args[1]));
     definePrimitive("head", 1, args => args[0].head);
@@ -241,42 +241,42 @@ module ripple {
         return stack;
     }
 
-    function ripEvalIf(expr: any, stack: any[]): any {
+    function evalIf(expr: any, stack: any[]): any {
         assertArity("If expression", 3, expr.length);
-        var conditionValue = isTruthy(rippleEval(expr[0], stack));
-        return rippleEval(conditionValue ? expr[1] : expr[2], stack);
+        var conditionValue = isTruthy(eval(expr[0], stack));
+        return eval(conditionValue ? expr[1] : expr[2], stack);
     }
 
-    function ripEvalAnd(expr: any, stack: any[]): any {
+    function evalAnd(expr: any, stack: any[]): any {
         assertArity("And expression", 2, expr.length);
-        var leftValue = isTruthy(rippleEval(expr[0], stack));
-        return leftValue ? rippleEval(expr[1], stack) : false;
+        var leftValue = isTruthy(eval(expr[0], stack));
+        return leftValue ? eval(expr[1], stack) : false;
     }
 
-    function ripEvalOr(expr: any, stack: any[]): any {
+    function evalOr(expr: any, stack: any[]): any {
         assertArity("Or expression", 2, expr.length);
-        var leftValue = isTruthy(rippleEval(expr[0], stack));
-        return leftValue ? true : rippleEval(expr[1], stack);
+        var leftValue = isTruthy(eval(expr[0], stack));
+        return leftValue ? true : eval(expr[1], stack);
     }
 
-    function ripEvalDefine(expr: any, stack: any[]): any {
+    function evalDefine(expr: any, stack: any[]): any {
         assertArity("Define expression", 2, expr.length);
         var name = symbolId(expr[0]);
-        var value = rippleEval(expr[1], stack);
+        var value = eval(expr[1], stack);
         return define(name, value);
     }
 
-    function ripEvalLet(expr: any, stack: any[]): any {
+    function evalLet(expr: any, stack: any[]): any {
         assertArity("Let expression", 3, expr.length);
         var name = symbolId(expr[0]);
-        var value = rippleEval(expr[1], stack);
+        var value = eval(expr[1], stack);
         stack = pushLocalStack([name], [value], stack);
-        return rippleEval(expr[2], stack);
+        return eval(expr[2], stack);
     }
 
-    function ripEvalFunction(expr: any, stack: any[]): any {
+    function evalFunction(expr: any, stack: any[]): any {
         assertArity("Function expression", 2, expr.length);
-        return new RipLambda(expr[0].map(symbolId), expr[1], stack);
+        return new Lambda(expr[0].map(symbolId), expr[1], stack);
     }
 
     function array2cons(a: any[]): any {
@@ -295,11 +295,11 @@ module ripple {
         return result;
     }
 
-    function ripEvalStack(stack: any[]): any {
+    function evalStack(stack: any[]): any {
         return array2cons(stack.map(map2cons));
     }
 
-    function ripApply(first: any, rest: any[]): any {
+    function apply(first: any, rest: any[]): any {
         if (isPrimitive(first)) {
             assertArity("Function", first.arity, rest.length);
             return first.f.call(null, rest);
@@ -308,13 +308,13 @@ module ripple {
         if (isLambda(first)) {
             assertArity("Function", first.params.length, rest.length);
             var stack = pushLocalStack(first.params, rest, first.stack);
-            return rippleEval(first.body, stack);
+            return eval(first.body, stack);
         }
 
         throw new Error("First element in combo must be a function");
     }
 
-    export function rippleEval(expr: any, stack: any[] = []): any {
+    export function eval(expr: any, stack: any[] = []): any {
         if (isArray(expr)) {
             if (expr.length === 0) { return null; }
             var first = expr[0];
@@ -322,19 +322,19 @@ module ripple {
 
             if (isSymbol(first)) {
                 switch (first.id) {
-                    case "if": return ripEvalIf(rest, stack);
-                    case "and": return ripEvalAnd(rest, stack);
-                    case "or": return ripEvalOr(rest, stack);
-                    case "define": return ripEvalDefine(rest, stack);
-                    case "let": return ripEvalLet(rest, stack);
-                    case "function": return ripEvalFunction(rest, stack);
-                    case "stack": return ripEvalStack(stack);
+                    case "if": return evalIf(rest, stack);
+                    case "and": return evalAnd(rest, stack);
+                    case "or": return evalOr(rest, stack);
+                    case "define": return evalDefine(rest, stack);
+                    case "let": return evalLet(rest, stack);
+                    case "function": return evalFunction(rest, stack);
+                    case "stack": return evalStack(stack);
                 }
             }
 
-            var firstValue = rippleEval(first, stack);
-            var restValues = rest.map(x => rippleEval(x, stack));
-            return ripApply(firstValue, restValues);
+            var firstValue = eval(first, stack);
+            var restValues = rest.map(x => eval(x, stack));
+            return apply(firstValue, restValues);
         }
 
         if (isSymbol(expr)) { return symbolLookup(expr.id, stack); }

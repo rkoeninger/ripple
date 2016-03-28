@@ -13,9 +13,9 @@ module ui {
         for (var i = 0; i < asts.length; ++i) {
             var result;
             try {
-                result = resultDiv(ripple.formatAst(asts[i]), ripple.formatAst(ripple.rippleEval(asts[i])));
+                result = resultDiv(ripple.format(asts[i]), ripple.format(ripple.eval(asts[i])));
             } catch (e) {
-                result = errorDiv(ripple.formatAst(asts[i]), e.toString());
+                result = errorDiv(ripple.format(asts[i]), e.toString());
             }
             batch.push(result);
         }
@@ -78,7 +78,7 @@ module ui {
         }
 
         defineIds.sort();
-        defineIds.forEach(key => definesDiv.append(defineDiv(key, ripple.formatAst(ripple.defines[key]))));
+        defineIds.forEach(key => definesDiv.append(defineDiv(key, ripple.format(ripple.defines[key]))));
     }
 
     function defineDiv(name: string, value) {
@@ -116,7 +116,7 @@ module ui {
 
         atomCount++;
         var b = buildDiv("atom atom-" + (atomCount % 4));
-        b.innerHTML = ripple.formatAst(ast);
+        b.innerHTML = ripple.format(ast);
         return b;
     }
 
