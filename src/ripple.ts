@@ -315,8 +315,6 @@ module ripple {
     }
 
     export function rippleEval(expr: any, stack: any[] = []): any {
-        if (isNull(expr)) { return null; }
-
         if (isArray(expr)) {
             if (expr.length === 0) { return null; }
             var first = expr[0];
