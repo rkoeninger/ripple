@@ -99,9 +99,7 @@ module ripple {
             this.pos++;
         }
         private skipWhiteSpace(): void {
-            while (!this.isDone() && /\s/.test(this.current())) {
-                this.skipOne();
-            }
+            while (!this.isDone() && /\s/.test(this.current())) { this.skipOne(); }
         }
         private skipWhile(f: (string) => boolean): number {
             var startingPos = this.pos;
@@ -109,7 +107,7 @@ module ripple {
             return startingPos;
         }
         private readStringLiteral(): string {
-            var startingPos = this.skipWhile(x => x && x !== '\"');
+            var startingPos = this.skipWhile(x => x && x !== '\"'); // TODO: does not handle escape chars
             this.skipOne(); // Skip over closing '\"'
             return this.text.substring(startingPos, this.pos - 1);
         }
@@ -196,7 +194,7 @@ module ripple {
         var value = stackLookup(id, stack);
         if (!isUndefined(value)) { return value; }
         if (defines.hasOwnProperty(id)) { return defines[id]; }
-        throw new Error("Symbol " + id + " not recognized");
+        throw new Error("Symbol \"" + id + "\" not recognized");
     }
 
     function pushLocalStack(params: string[], values: any[], stack: any[]): any[] {
@@ -285,7 +283,7 @@ module ripple {
 
     function apply(first: any, rest: any[]): any {
         if (isPrimitive(first)) {
-            assertArity("Function " + first.id, first.arity, rest.length);
+            assertArity("Function \"" + first.id + "\"", first.arity, rest.length);
             return first.f(rest);
         }
 
@@ -306,7 +304,7 @@ module ripple {
 
             if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
                 var special = specials[first.id];
-                assertArity(special.id + " form", special.arity, rest.length);
+                assertArity("\"" + special.id + "\" form", special.arity, rest.length);
                 return special.f(rest, stack);
             }
 
