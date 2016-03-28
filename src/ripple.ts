@@ -196,6 +196,7 @@ module ripple {
     definePrimitive("<=", 2, args => args[0] <= args[1]);
     definePrimitive(">=", 2, args => args[0] >= args[1]);
     definePrimitive("mod", 2, args => args[0] % args[1]);
+    definePrimitive("sqrt", 1, args => Math.sqrt(args[0]));
     definePrimitive("negate", 1, args => args[0] * -1);
     definePrimitive("boolean?", 1, args => isBoolean(args[0]));
     definePrimitive("not", 1, args => !args[0]);
