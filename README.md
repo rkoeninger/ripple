@@ -39,3 +39,13 @@ Lexical scoping test:
 
 ((k "hi"))
 ```
+
+Quadratic formula:
+
+```
+(define quadratic
+  (function (a b c)
+    (/ (+ (negate b)
+          (sqrt (- (* b b) (* 4 (* a c)))))
+       (* 2 a))))
+```
