@@ -19,11 +19,23 @@ module ripple {
         toString = (): string => this.id;
     }
 
+    class Special {
+        id: string;
+        arity: number;
+        f: (exprs: any[], stack: any[]) => any;
+        constructor(id: string, arity: number, f: (exprs: any[], stack: any[]) => any) {
+            this.id = id;
+            this.arity = arity;
+            this.f = f;
+        }
+        toString = (): string => this.id;
+    }
+
     class Primitive {
         id: string;
         arity: number;
-        f: (any) => any;
-        constructor(id: string, arity: number, f: (any) => any) {
+        f: (args: any[]) => any;
+        constructor(id: string, arity: number, f: (args: any[]) => any) {
             this.id = id;
             this.arity = arity;
             this.f = f;
@@ -58,16 +70,16 @@ module ripple {
     export function isPrimitive(x: any): boolean { return x instanceof Primitive; }
     export function isArray(x: any): boolean { return Array.isArray(x); }
 
-    export function format(ast: any, stack: any[] = []): string {
-        if (isUndefined(ast)) { throw new Error("Can't print undefined value"); }
-        if (isNull(ast)) { return "null"; }
-        if (isArray(ast)) { return "(" + ast.map(x => format(x, stack)).join(" ") + ")"; }
-        if (isString(ast)) { return "\"" + ast + "\""; }
-        if (isSymbol(ast) && stack.length > 0) {
-            var value = stackLookup(ast, stack);
-            return isUndefined(value) ? ast.toString() : format(value);
+    export function format(value: any, stack: any[] = []): string {
+        if (isUndefined(value)) { throw new Error("Can't print undefined value"); }
+        if (isNull(value)) { return "null"; }
+        if (isArray(value)) { return "(" + value.map(x => format(x, stack)).join(" ") + ")"; }
+        if (isString(value)) { return "\"" + value + "\""; }
+        if (isSymbol(value) && stack.length > 0) {
+            var result = stackLookup(value, stack);
+            return isUndefined(result) ? value.toString() : format(result);
         }
-        return ast.toString();
+        return value.toString();
     }
 
     class Source {
@@ -160,6 +172,59 @@ module ripple {
         return new Source(text).parseOne();
     }
 
+    function assertType(typeCheck: (any) => boolean, value: any): void {
+        if (!typeCheck(value)) { throw new Error("Value was not of the expected type"); }
+    }
+
+    function assertArity(type: string, expected: number, actual: number): void {
+        if (expected !== actual) { throw new Error(type + " takes " + expected + " args, but given " + actual); }
+    }
+
+    function symbolId(value: any): string {
+        assertType(isSymbol, value);
+        return value.id;
+    }
+
+    function stackLookup(id: string, stack: any[]): any {
+        for (var m = stack.length - 1; m >= 0; --m) {
+            if (stack[m].hasOwnProperty(id)) { return stack[m][id]; }
+        }
+        return undefined;
+    }
+
+    function symbolLookup(id: string, stack: any[]): any {
+        var value = stackLookup(id, stack);
+        if (!isUndefined(value)) { return value; }
+        if (defines.hasOwnProperty(id)) { return defines[id]; }
+        throw new Error("Symbol " + id + " not recognized");
+    }
+
+    function pushLocalStack(params: string[], values: any[], stack: any[]): any[] {
+        if (params.length > 0) {
+            var frame = {};
+            params.forEach((_, i) => frame[params[i]] = values[i]);
+            var stack = stack.slice(0);
+            stack.push(frame);
+        }
+        return stack;
+    }
+
+    function array2cons(a: any[]): any {
+        var result = null;
+        for (var i = a.length - 1; i >= 0; --i) {
+            result = new Cons(a[i], result);
+        }
+        return result;
+    }
+
+    function map2cons(m: any): any {
+        var result = null;
+        for (var key in m) {
+            result = new Cons(new Cons(key, m[key]), result);
+        }
+        return result;
+    }
+
     export var defines = {};
 
     function define(id: string, value: any): any {
@@ -204,115 +269,24 @@ module ripple {
     definePrimitive("concat", 2, args => (args[0] || "null").toString() + (args[1] || "null").toString());
     definePrimitive("log", 1, args => { console.log(args[0]); return null; });
 
-    function assertType(typeCheck: (any) => boolean, value: any): void {
-        if (!typeCheck(value)) { throw new Error("Value was not of the expected type"); }
+    var specials = {};
+
+    function defineSpecial(id: string, arity: number, f: (exprs: any[], stack: any[]) => any) {
+        specials[id] = new Special(id, arity, f);
     }
 
-    function assertArity(type: string, expected: number, actual: number): void {
-        if (expected !== actual) { throw new Error(type + " takes " + expected + " args, but given " + actual); }
-    }
-
-    function symbolId(value: any): string {
-        assertType(isSymbol, value);
-        return value.id;
-    }
-
-    function stackLookup(id: string, stack: any[]): any {
-        for (var m = stack.length - 1; m >= 0; --m) {
-            if (stack[m].hasOwnProperty(id)) { return stack[m][id]; }
-        }
-        return undefined;
-    }
-
-    function symbolLookup(id: string, stack: any[]): any {
-        var value = stackLookup(id, stack);
-        if (!isUndefined(value)) { return value; }
-        if (defines.hasOwnProperty(id)) { return defines[id]; }
-        throw new Error("Symbol " + id + " not recognized");
-    }
-
-    function pushLocalStack(params: string[], values: any[], stack: any[]): any[] {
-        if (params.length > 0) {
-            var frame = {};
-            params.forEach((_, i) => frame[params[i]] = values[i]);
-            var stack = stack.slice(0);
-            stack.push(frame);
-        }
-        return stack;
-    }
-
-    function evalIf(exprs: any[], stack: any[]): any {
-        assertArity("If expression", 3, exprs.length);
-        var conditionValue = isTruthy(eval(exprs[0], stack));
-        return eval(conditionValue ? exprs[1] : exprs[2], stack);
-    }
-
-    function evalAnd(exprs: any[], stack: any[]): any {
-        assertArity("And expression", 2, exprs.length);
-        var leftValue = isTruthy(eval(exprs[0], stack));
-        return leftValue ? eval(exprs[1], stack) : false;
-    }
-
-    function evalOr(exprs: any[], stack: any[]): any {
-        assertArity("Or expression", 2, exprs.length);
-        var leftValue = isTruthy(eval(exprs[0], stack));
-        return leftValue ? true : eval(exprs[1], stack);
-    }
-
-    function evalDefine(exprs: any[], stack: any[]): any {
-        assertArity("Define expression", 2, exprs.length);
-        var name = symbolId(exprs[0]);
-        var value = eval(exprs[1], stack);
-        return define(name, value);
-    }
-
-    function evalLet(exprs: any[], stack: any[]): any {
-        assertArity("Let expression", 3, exprs.length);
-        var name = symbolId(exprs[0]);
-        var value = eval(exprs[1], stack);
-        stack = pushLocalStack([name], [value], stack);
-        return eval(exprs[2], stack);
-    }
-
-    function evalFunction(exprs: any[], stack: any[]): any {
-        assertArity("Function expression", 2, exprs.length);
-        return new Lambda(exprs[0].map(symbolId), exprs[1], stack);
-    }
-
-    function array2cons(a: any[]): any {
-        var result = null;
-        for (var i = a.length - 1; i >= 0; --i) {
-            result = new Cons(a[i], result);
-        }
-        return result;
-    }
-
-    function map2cons(m: any): any {
-        var result = null;
-        for (var key in m) {
-            result = new Cons(new Cons(key, m[key]), result);
-        }
-        return result;
-    }
-
-    function evalStack(expr: any[], stack: any[]): any {
-        return array2cons(stack.map(map2cons));
-    }
-
-    var specials = {
-        "if": evalIf,
-        "and": evalAnd,
-        "or": evalOr,
-        "define": evalDefine,
-        "let": evalLet,
-        "function": evalFunction,
-        "stack": evalStack
-    };
+    defineSpecial("if", 3, (exprs, stack) => isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : eval(exprs[2], stack));
+    defineSpecial("and", 2, (exprs, stack) => isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : false);
+    defineSpecial("or", 2, (exprs, stack) => isTruthy(eval(exprs[0], stack)) ? true : eval(exprs[1], stack));
+    defineSpecial("define", 2, (exprs, stack) => define(symbolId(exprs[0]), eval(exprs[1], stack)));
+    defineSpecial("let", 3, (exprs, stack) => eval(exprs[2], pushLocalStack([symbolId(exprs[0])], [eval(exprs[1], stack)], stack)));
+    defineSpecial("function", 2, (exprs, stack) => new Lambda(exprs[0].map(symbolId), exprs[1], stack));
+    defineSpecial("stack", 0, (exprs, stack) => array2cons(stack.map(map2cons)));
 
     function apply(first: any, rest: any[]): any {
         if (isPrimitive(first)) {
-            assertArity("Function", first.arity, rest.length);
-            return first.f.call(null, rest);
+            assertArity("Function " + first.id, first.arity, rest.length);
+            return first.f(rest);
         }
 
         if (isLambda(first)) {
@@ -331,7 +305,9 @@ module ripple {
             var rest = expr.slice(1);
 
             if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
-                return specials[first.id](rest, stack);
+                var special = specials[first.id];
+                assertArity(special.id + " form", special.arity, rest.length);
+                return special.f(rest, stack);
             }
 
             var firstValue = eval(first, stack);

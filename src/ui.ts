@@ -12,6 +12,7 @@ module ui {
             try {
                 return resultDiv(syntax, ripple.format(ripple.eval(ast)));
             } catch (e) {
+                console.error(e);
                 return errorDiv(syntax, e.toString());
             }
         });
