@@ -1,6 +1,10 @@
 # ripple
 Experimental repl
 
+jQuery typescript definition found at:
+
+https://raw.githubusercontent.com/DefinitelyTyped/DefinitelyTyped/master/jquery/jquery.d.ts
+
 ```
 (define do (function (x y) y))
 
