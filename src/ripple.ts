@@ -8,6 +8,18 @@ module ripple {
             this.head = head;
             this.tail = tail;
         }
+        static fromArray(array: any[]): any {
+            var result = null;
+            for (var i = array.length - 1; i >= 0; --i) {
+                result = new Cons(array[i], result);
+            }
+            return result;
+        }
+        toArray(): any[] {
+            var result = [this.head];
+            for (var next = this.tail; isCons(next); next = next.tail) { result.push(next); }
+            return result;
+        }
         toString = (): string => "(" + format(this.head) + " " + format(this.tail) + ")";
     }
 
@@ -207,22 +219,6 @@ module ripple {
         return stack;
     }
 
-    function array2cons(a: any[]): any {
-        var result = null;
-        for (var i = a.length - 1; i >= 0; --i) {
-            result = new Cons(a[i], result);
-        }
-        return result;
-    }
-
-    function map2cons(m: any): any {
-        var result = null;
-        for (var key in m) {
-            result = new Cons(new Cons(key, m[key]), result);
-        }
-        return result;
-    }
-
     export var defines = {};
 
     function define(id: string, value: any): any {
@@ -279,7 +275,6 @@ module ripple {
     defineSpecial("define", 2, (exprs, stack) => define(symbolId(exprs[0]), eval(exprs[1], stack)));
     defineSpecial("let", 3, (exprs, stack) => eval(exprs[2], pushLocalStack([symbolId(exprs[0])], [eval(exprs[1], stack)], stack)));
     defineSpecial("function", 2, (exprs, stack) => new Lambda(exprs[0].map(symbolId), exprs[1], stack));
-    defineSpecial("stack", 0, (exprs, stack) => array2cons(stack.map(map2cons)));
 
     function apply(first: any, rest: any[]): any {
         if (isPrimitive(first)) {
