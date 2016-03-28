@@ -1,29 +1,21 @@
 
 module ui {
 
-    export function parseIt() {
-        var text = $("#input-text").val();
-        console.log(ripple.parseAllText(text));
-    }
-
     export function runIt() {
         var text = $("#input-text").val();
         var asts = ripple.parseAllText(text);
-        var batch = [];
-        for (var i = 0; i < asts.length; ++i) {
-            var result;
+
+        if (asts.length === 0) { return; }
+
+        var batch = asts.map(ast => {
+            var syntax = ripple.format(ast);
             try {
-                result = resultDiv(ripple.format(asts[i]), ripple.format(ripple.eval(asts[i])));
+                return resultDiv(syntax, ripple.format(ripple.eval(ast)));
             } catch (e) {
-                result = errorDiv(ripple.format(asts[i]), e.toString());
+                return errorDiv(syntax, e.toString());
             }
-            batch.push(result);
-        }
-        if (batch.length === 1) {
-            $("#results").prepend(batch[0]);
-        } else if (batch.length > 0) {
-            $("#results").prepend(batchDiv(batch));
-        }
+        });
+        $("#results").prepend(batch.length === 1 ? batch[0] : batchDiv(batch));
         updateDefines();
     }
 
@@ -69,14 +61,8 @@ module ui {
 
     function updateDefines() {
         var definesDiv = $("#defines").empty();
-        var defineIds = [];
-
-        for (var key in ripple.defines) {
-            if (ripple.defines.hasOwnProperty(key) && !(ripple.isPrimitive(ripple.defines[key]))) {
-                defineIds.push(key);
-            }
-        }
-
+        var defineIds = Object.keys(ripple.defines)
+            .filter(key => ripple.defines.hasOwnProperty(key) && !(ripple.isPrimitive(ripple.defines[key])));
         defineIds.sort();
         defineIds.forEach(key => definesDiv.append(defineDiv(key, ripple.format(ripple.defines[key]))));
     }
@@ -103,14 +89,9 @@ module ui {
     var atomCount = 0;
 
     function build(ast, depth: number) {
-
         if (ripple.isArray(ast)) {
             var d = buildDiv("combo combo-" + (depth % 4));
-
-            for (var i = 0; i < ast.length; ++i) {
-                d.appendChild(build(ast[i], depth + 1));
-            }
-
+            ast.forEach(child => d.appendChild(build(child, depth + 1)));
             return d;
         }
 
@@ -120,7 +101,7 @@ module ui {
         return b;
     }
 
-    function buildDiv(className: string) {
+    function buildDiv(className?: string) {
         var d = document.createElement("div");
         if (className) {
             d.className = className;

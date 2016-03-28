@@ -19,7 +19,6 @@
                     }
                 }
             }).val("(define say (function (x) (function () (log x))))\n\n(say \"hello\")");
-            $("#parse-button").click(function () { ui.parseIt(); });
             $("#run-button").click(function () { ui.runIt(); });
             $("#build-button").click(function () { ui.buildIt(); });
         });
@@ -27,7 +26,6 @@
     </head>
     <body>
         <textarea id="input-text" rows="4" cols="50"></textarea>
-        <button id="parse-button">Parse</button>
         <button id="run-button">Run</button>
         <button id="build-button">Build</button>
         <div class="clear"></div>
