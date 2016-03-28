@@ -67,7 +67,7 @@ module ripple {
         toString = (): string => format([
             new Symbol("function"),
             this.params.map(x => new Symbol(x)),
-            this.body], this.stack);
+            this.body]);
     }
 
     function isUndefined(x: any): boolean { return typeof x === "undefined"; }
@@ -83,15 +83,11 @@ module ripple {
     export function isPrimitive(x: any): boolean { return x instanceof Primitive; }
     export function isArray(x: any): boolean { return Array.isArray(x); }
 
-    export function format(value: any, stack: any[] = []): string {
+    export function format(value: any): string {
         if (isUndefined(value)) { throw new Error("Can't print undefined value"); }
         if (isNull(value)) { return "null"; }
-        if (isArray(value)) { return "(" + value.map(x => format(x, stack)).join(" ") + ")"; }
+        if (isArray(value)) { return "(" + value.map(x => format(x)).join(" ") + ")"; }
         if (isString(value)) { return "\"" + value + "\""; }
-        if (isSymbol(value) && stack.length > 0) {
-            var result = stackLookup(value, stack);
-            return isUndefined(result) ? value.toString() : format(result);
-        }
         return value.toString();
     }
 
@@ -196,16 +192,10 @@ module ripple {
         return value.id;
     }
 
-    function stackLookup(id: string, stack: any[]): any {
+    function symbolLookup(id: string, stack: any[]): any {
         for (var m = stack.length - 1; m >= 0; --m) {
             if (stack[m].hasOwnProperty(id)) { return stack[m][id]; }
         }
-        return undefined;
-    }
-
-    function symbolLookup(id: string, stack: any[]): any {
-        var value = stackLookup(id, stack);
-        if (!isUndefined(value)) { return value; }
         if (defines.hasOwnProperty(id)) { return defines[id]; }
         throw new Error("Symbol \"" + id + "\" not recognized");
     }
