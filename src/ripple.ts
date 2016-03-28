@@ -260,7 +260,7 @@ module ripple {
     definePrimitive("boolean?", 1, args => isBoolean(args[0]));
     definePrimitive("not", 1, args => !args[0]);
     definePrimitive("string?", 1, args => isString(args[0]));
-    definePrimitive("concat", 2, args => (args[0] || "null").toString() + (args[1] || "null").toString());
+    definePrimitive("concat", 2, args => (args[0] || "").toString() + (args[1] || "").toString());
     definePrimitive("log", 1, args => { console.log(args[0]); return null; });
 
     var specials = {};
