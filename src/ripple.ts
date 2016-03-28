@@ -127,7 +127,7 @@ module ripple {
             var startingPos = this.skipWhile(x => x && x !== ')' && x !== ')' && /\S/.test(x));
             var unparsedLiteral = this.text.substring(startingPos, this.pos);
 
-            if (/^\d/.test(unparsedLiteral)) { return parseFloat(unparsedLiteral); }
+            if (/^\x2D?\d/.test(unparsedLiteral)) { return parseFloat(unparsedLiteral); }
 
             switch (unparsedLiteral) {
                 case "false": return false;
@@ -226,7 +226,7 @@ module ripple {
         return value;
     }
 
-    function definePrimitive(id: string, arity: number, f: (any) => any): any {
+    function definePrimitive(id: string, arity: number, f: (args: any[]) => any): any {
         return define(id, new Primitive(id, arity, f));
     }
 
