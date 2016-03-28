@@ -78,6 +78,7 @@ module ripple {
     function isString(x: any): boolean { return typeof x === "string"; }
     function isSymbol(x: any): boolean { return x instanceof Symbol; }
     function isCons(x: any): boolean { return x instanceof Cons; }
+    function isFunction(x: any): boolean { return isLambda(x) || isPrimitive(x); }
     function isLambda(x: any): boolean { return x instanceof Lambda; }
     export function isPrimitive(x: any): boolean { return x instanceof Primitive; }
     export function isArray(x: any): boolean { return Array.isArray(x); }
@@ -277,6 +278,8 @@ module ripple {
     defineSpecial("function", 2, (exprs, stack) => new Lambda(exprs[0].map(symbolId), exprs[1], stack));
 
     function apply(first: any, rest: any[]): any {
+        assertType(isFunction, first);
+
         if (isPrimitive(first)) {
             assertArity("Function \"" + first.id + "\"", first.arity, rest.length);
             return first.f(rest);
@@ -287,8 +290,6 @@ module ripple {
             var stack = pushLocalStack(first.params, rest, first.stack);
             return eval(first.body, stack);
         }
-
-        throw new Error("First element in combo must be a function");
     }
 
     export function eval(expr: any, stack: any[] = []): any {
@@ -299,7 +300,7 @@ module ripple {
 
             if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
                 var special = specials[first.id];
-                assertArity("\"" + special.id + "\" form", special.arity, rest.length);
+                assertArity("Special form \"" + special.id + "\"", special.arity, rest.length);
                 return special.f(rest, stack);
             }
 
