@@ -8,8 +8,8 @@ module ui {
 
     export function runIt() {
         var text = $("#input-text").val();
-        var results = $("#results");
         var asts = ripple.parseAllText(text);
+        var batch = [];
         for (var i = 0; i < asts.length; ++i) {
             var result;
             try {
@@ -17,9 +17,20 @@ module ui {
             } catch (e) {
                 result = errorDiv(ripple.formatAst(asts[i]), e.toString());
             }
-            results.prepend(result);
+            batch.push(result);
+        }
+        if (batch.length === 1) {
+            $("#results").prepend(batch[0]);
+        } else if (batch.length > 0) {
+            $("#results").prepend(batchDiv(batch));
         }
         updateDefines();
+    }
+
+    function batchDiv(results) {
+        var batch = $("<div></div>").addClass("result-batch");
+        results.forEach(r => batch.append(r));
+        return batch;
     }
 
     function resultDiv(expr: string, res: string) {
@@ -58,12 +69,16 @@ module ui {
 
     function updateDefines() {
         var definesDiv = $("#defines").empty();
+        var defineIds = [];
 
         for (var key in ripple.defines) {
             if (ripple.defines.hasOwnProperty(key) && !(ripple.isPrimitive(ripple.defines[key]))) {
-                definesDiv.append(defineDiv(key, ripple.formatAst(ripple.defines[key])));
+                defineIds.push(key);
             }
         }
+
+        defineIds.sort();
+        defineIds.forEach(key => definesDiv.append(defineDiv(key, ripple.formatAst(ripple.defines[key]))));
     }
 
     function defineDiv(name: string, value) {
