@@ -1,25 +1,25 @@
 
 module ripple {
 
-    class Cons {
+    export function grow<A, B>(initial: A, next: (A) => A, check: (A) => boolean = x => !isUndefined(x), select: (A) => B = x => x): B[] {
+        const result = [];
+
+        for (let current = initial; check(current); current = next(current)) {
+            result.push(select(current));
+        }
+
+        return result;
+    }
+
+    export class Cons {
         head: any;
         tail: any;
         constructor(head: any, tail: any) {
             this.head = head;
             this.tail = tail;
         }
-        static fromArray(array: any[]): any {
-            return array.reduceRight((tail, head) => new Cons(head, tail), null);
-        }
-        toArray(): any[] {
-            const result = [this.head];
-
-            for (let next = this.tail; isCons(next); next = next.tail) {
-                result.push(next);
-            }
-
-            return result;
-        }
+        static fromArray = (array: any[]): any => array.reduceRight((tail, head) => new Cons(head, tail), null);
+        toArray = (): any[] => grow(this, x => x.tail, isCons, x => x.head);
         toString = (): string => `(${format(this.head)} ${format(this.tail)})`;
     }
 
@@ -149,13 +149,7 @@ module ripple {
             switch (this.current()) {
                 case '(':
                     this.skipOne(); // Skip over '('
-                    const children = [];
-
-                    for (let child = this.parseOne(); !isUndefined(child); child = this.parseOne()) {
-                        children.push(child);
-                    }
-
-                    return children;
+                    return grow(this.parseOne(), _ => this.parseOne());
                 case ')':
                     this.skipOne(); // Skip over ')'
                     return undefined;
