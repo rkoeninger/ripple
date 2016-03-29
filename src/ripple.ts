@@ -9,18 +9,18 @@ module ripple {
             this.tail = tail;
         }
         static fromArray(array: any[]): any {
-            var result = null;
-            for (var i = array.length - 1; i >= 0; --i) {
-                result = new Cons(array[i], result);
-            }
-            return result;
+            return array.reduceRight((tail, head) => new Cons(head, tail), null);
         }
         toArray(): any[] {
-            var result = [this.head];
-            for (var next = this.tail; isCons(next); next = next.tail) { result.push(next); }
+            const result = [this.head];
+
+            for (let next = this.tail; isCons(next); next = next.tail) {
+                result.push(next);
+            }
+
             return result;
         }
-        toString = (): string => "(" + format(this.head) + " " + format(this.tail) + ")";
+        toString = (): string => `(${format(this.head)} ${format(this.tail)})`;
     }
 
     class Symbol {
@@ -86,8 +86,8 @@ module ripple {
     export function format(value: any): string {
         if (isUndefined(value)) { throw new Error("Can't print undefined value"); }
         if (isNull(value)) { return "null"; }
-        if (isArray(value)) { return "(" + value.map(x => format(x)).join(" ") + ")"; }
-        if (isString(value)) { return "\"" + value + "\""; }
+        if (isArray(value)) { return `(${value.map(x => format(x)).join(" ")})`; }
+        if (isString(value)) { return `"${value}"`; }
         return value.toString();
     }
 
@@ -107,24 +107,30 @@ module ripple {
         private skipOne(): void {
             this.pos++;
         }
-        private skipWhiteSpace(): void {
-            while (!this.isDone() && /\s/.test(this.current())) { this.skipOne(); }
-        }
         private skipWhile(f: (string) => boolean): number {
-            var startingPos = this.pos;
-            while (f(this.current())) { this.skipOne(); }
+            const startingPos = this.pos;
+
+            while (!this.isDone() && f(this.current())) {
+                this.skipOne();
+            }
+
             return startingPos;
         }
+        private skipWhiteSpace(): void {
+            this.skipWhile(x => /\s/.test(x));
+        }
         private readStringLiteral(): string {
-            var startingPos = this.skipWhile(x => x && x !== '\"'); // TODO: does not handle escape chars
+            const startingPos = this.skipWhile(x => x && x !== '\"'); // TODO: does not handle escape chars
             this.skipOne(); // Skip over closing '\"'
             return this.text.substring(startingPos, this.pos - 1);
         }
         private readLiteral(): any {
-            var startingPos = this.skipWhile(x => x && x !== ')' && x !== ')' && /\S/.test(x));
-            var unparsedLiteral = this.text.substring(startingPos, this.pos);
+            const startingPos = this.skipWhile(x => x && x !== ')' && x !== ')' && /\S/.test(x));
+            const unparsedLiteral = this.text.substring(startingPos, this.pos);
 
-            if (/^\x2D?\d/.test(unparsedLiteral)) { return parseFloat(unparsedLiteral); }
+            if (/^\x2D?\d/.test(unparsedLiteral)) {
+                return parseFloat(unparsedLiteral);
+            }
 
             switch (unparsedLiteral) {
                 case "false": return false;
@@ -136,14 +142,16 @@ module ripple {
         parseOne(): any {
             this.skipWhiteSpace();
 
-            if (this.isDone()) { throw new Error("Unexpected end of file"); }
+            if (this.isDone()) {
+                throw new Error("Unexpected end of file");
+            }
 
             switch (this.current()) {
                 case '(':
                     this.skipOne(); // Skip over '('
-                    var children = [];
+                    const children = [];
 
-                    for (var child = this.parseOne(); !isUndefined(child); child = this.parseOne()) {
+                    for (let child = this.parseOne(); !isUndefined(child); child = this.parseOne()) {
                         children.push(child);
                     }
 
@@ -159,12 +167,11 @@ module ripple {
             }
         }
         parseAll(): any[] {
-            var result = [];
+            const result = [];
             this.skipWhiteSpace();
 
             while (!this.isDone()) {
                 result.push(this.parseOne());
-                this.skipWhiteSpace();
             }
 
             return result;
@@ -180,11 +187,15 @@ module ripple {
     }
 
     function assertType(typeCheck: (any) => boolean, value: any): void {
-        if (!typeCheck(value)) { throw new Error("Value was not of the expected type"); }
+        if (!typeCheck(value)) {
+            throw new Error("Value was not of the expected type");
+        }
     }
 
     function assertArity(type: string, expected: number, actual: number): void {
-        if (expected !== actual) { throw new Error(type + " takes " + expected + " args, but given " + actual); }
+        if (expected !== actual) {
+            throw new Error(`${type} takes ${expected} args, but given ${actual}`);
+        }
     }
 
     function symbolId(value: any): string {
@@ -193,24 +204,31 @@ module ripple {
     }
 
     function symbolLookup(id: string, stack: any[]): any {
-        for (var m = stack.length - 1; m >= 0; --m) {
-            if (stack[m].hasOwnProperty(id)) { return stack[m][id]; }
+        for (let m = stack.length - 1; m >= 0; --m) {
+            if (stack[m].hasOwnProperty(id)) {
+                return stack[m][id];
+            }
         }
-        if (defines.hasOwnProperty(id)) { return defines[id]; }
-        throw new Error("Symbol \"" + id + "\" not recognized");
+
+        if (defines.hasOwnProperty(id)) {
+            return defines[id];
+        }
+
+        throw new Error(`Symbol "${id}" not recognized`);
     }
 
     function pushLocalStack(params: string[], values: any[], stack: any[]): any[] {
         if (params.length > 0) {
-            var frame = {};
+            const frame = {};
             params.forEach((_, i) => frame[params[i]] = values[i]);
-            var stack = stack.slice(0);
+            stack = stack.slice(0);
             stack.push(frame);
         }
+
         return stack;
     }
 
-    export var defines = {};
+    export const defines = {};
 
     function define(id: string, value: any): any {
         defines[id] = value;
@@ -254,52 +272,66 @@ module ripple {
     definePrimitive("concat", 2, args => (args[0] || "").toString() + (args[1] || "").toString());
     definePrimitive("log", 1, args => { console.log(args[0]); return null; });
 
-    var specials = {};
+    const specials = {};
 
     function defineSpecial(id: string, arity: number, f: (exprs: any[], stack: any[]) => any) {
         specials[id] = new Special(id, arity, f);
     }
 
-    defineSpecial("if", 3, (exprs, stack) => isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : eval(exprs[2], stack));
-    defineSpecial("and", 2, (exprs, stack) => isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : false);
-    defineSpecial("or", 2, (exprs, stack) => isTruthy(eval(exprs[0], stack)) ? true : eval(exprs[1], stack));
-    defineSpecial("define", 2, (exprs, stack) => define(symbolId(exprs[0]), eval(exprs[1], stack)));
-    defineSpecial("let", 3, (exprs, stack) => eval(exprs[2], pushLocalStack([symbolId(exprs[0])], [eval(exprs[1], stack)], stack)));
-    defineSpecial("function", 2, (exprs, stack) => new Lambda(exprs[0].map(symbolId), exprs[1], stack));
+    defineSpecial("if", 3, (exprs, stack) =>
+        isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : eval(exprs[2], stack)
+    );
+    defineSpecial("and", 2, (exprs, stack) =>
+        isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : false
+    );
+    defineSpecial("or", 2, (exprs, stack) =>
+        isTruthy(eval(exprs[0], stack)) ? true : eval(exprs[1], stack)
+    );
+    defineSpecial("define", 2, (exprs, stack) =>
+        define(symbolId(exprs[0]), eval(exprs[1], stack))
+    );
+    defineSpecial("let", 3, (exprs, stack) =>
+        eval(exprs[2], pushLocalStack([symbolId(exprs[0])], [eval(exprs[1], stack)], stack))
+    );
+    defineSpecial("function", 2, (exprs, stack) =>
+        new Lambda(exprs[0].map(symbolId), exprs[1], stack)
+    );
 
     function apply(first: any, rest: any[]): any {
         assertType(isFunction, first);
 
         if (isPrimitive(first)) {
-            assertArity("Function \"" + first.id + "\"", first.arity, rest.length);
+            assertArity(`Function "${first.id}"`, first.arity, rest.length);
             return first.f(rest);
         }
 
         if (isLambda(first)) {
             assertArity("Function", first.params.length, rest.length);
-            var stack = pushLocalStack(first.params, rest, first.stack);
-            return eval(first.body, stack);
+            return eval(first.body, pushLocalStack(first.params, rest, first.stack));
         }
     }
 
     export function eval(expr: any, stack: any[] = []): any {
         if (isArray(expr)) {
-            if (expr.length === 0) { return null; }
-            var first = expr[0];
-            var rest = expr.slice(1);
+            if (expr.length === 0) {
+                return null;
+            }
+
+            const [first, ...rest] = expr;
 
             if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
-                var special = specials[first.id];
-                assertArity("Special form \"" + special.id + "\"", special.arity, rest.length);
+                const special = specials[first.id];
+                assertArity(`Special form "${special.id}"`, special.arity, rest.length);
                 return special.f(rest, stack);
             }
 
-            var firstValue = eval(first, stack);
-            var restValues = rest.map(x => eval(x, stack));
+            const [firstValue, ...restValues] = expr.map(x => eval(x, stack));
             return apply(firstValue, restValues);
         }
 
-        if (isSymbol(expr)) { return symbolLookup(expr.id, stack); }
+        if (isSymbol(expr)) {
+            return symbolLookup(expr.id, stack);
+        }
 
         return expr;
     }

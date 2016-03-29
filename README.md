@@ -48,4 +48,6 @@ Quadratic formula:
     (/ (+ (negate b)
           (sqrt (- (* b b) (* 4 (* a c)))))
        (* 2 a))))
+
+(quadratic 2 5 1)
 ```
