@@ -1,7 +1,10 @@
 
 module ripple {
 
-    export function grow<A, B>(initial: A, next: (A) => A, check: (A) => boolean = x => !isUndefined(x), select: (A) => B = x => x): B[] {
+    // TODO: definite type enum for values in ripple
+    //type Value = boolean | number | string | Symbol | Cons | Primitive | Lambda;
+
+    function grow<A, B>(initial: A, next: (x: A) => A, check: (x: A) => boolean, select: (x: A) => B): B[] {
         const result = [];
 
         for (let current = initial; check(current); current = next(current)) {
@@ -11,7 +14,7 @@ module ripple {
         return result;
     }
 
-    export class Cons {
+    class Cons {
         head: any;
         tail: any;
         constructor(head: any, tail: any) {
@@ -70,18 +73,21 @@ module ripple {
             this.body]);
     }
 
+    type Function = Primitive | Lambda;
+
     function isUndefined(x: any): boolean { return typeof x === "undefined"; }
+    function isDefined(x: any): boolean { return typeof x !== "undefined"; }
     function isNull(x: any): boolean { return x === null; }
-    function isBoolean(x: any): boolean { return typeof x === "boolean"; }
+    function isBoolean(x: any): x is boolean { return typeof x === "boolean"; }
     function isTruthy(x: any): boolean { return x !== null && x !== false; }
-    function isNumber(x: any): boolean { return typeof x === "number"; }
-    function isString(x: any): boolean { return typeof x === "string"; }
-    function isSymbol(x: any): boolean { return x instanceof Symbol; }
-    function isCons(x: any): boolean { return x instanceof Cons; }
-    function isFunction(x: any): boolean { return isLambda(x) || isPrimitive(x); }
-    function isLambda(x: any): boolean { return x instanceof Lambda; }
-    export function isPrimitive(x: any): boolean { return x instanceof Primitive; }
-    export function isArray(x: any): boolean { return Array.isArray(x); }
+    function isNumber(x: any): x is number { return typeof x === "number"; }
+    function isString(x: any): x is string { return typeof x === "string"; }
+    function isSymbol(x: any): x is Symbol { return x instanceof Symbol; }
+    function isCons(x: any): x is Cons { return x instanceof Cons; }
+    function isFunction(x: any): x is Function { return x instanceof Lambda || x instanceof Primitive; }
+    function isLambda(x: any): x is Lambda { return x instanceof Lambda; }
+    export function isPrimitive(x: any): x is Primitive { return x instanceof Primitive; }
+    export function isArray(x: any): x is [] { return Array.isArray(x); }
 
     export function format(value: any): string {
         if (isUndefined(value)) { throw new Error("Can't print undefined value"); }
@@ -107,7 +113,7 @@ module ripple {
         private skipOne(): void {
             this.pos++;
         }
-        private skipWhile(f: (string) => boolean): number {
+        private skipWhile(f: (x: string) => boolean): number {
             const startingPos = this.pos;
 
             while (!this.isDone() && f(this.current())) {
@@ -120,12 +126,12 @@ module ripple {
             this.skipWhile(x => /\s/.test(x));
         }
         private readStringLiteral(): string {
-            const startingPos = this.skipWhile(x => x && x !== '\"'); // TODO: does not handle escape chars
+            const startingPos = this.skipWhile(x => x !== '\"'); // TODO: does not handle escape chars
             this.skipOne(); // Skip over closing '\"'
             return this.text.substring(startingPos, this.pos - 1);
         }
         private readLiteral(): any {
-            const startingPos = this.skipWhile(x => x && x !== ')' && x !== ')' && /\S/.test(x));
+            const startingPos = this.skipWhile(x => x !== ')' && x !== ')' && /\S/.test(x));
             const unparsedLiteral = this.text.substring(startingPos, this.pos);
 
             if (/^\x2D?\d/.test(unparsedLiteral)) {
@@ -149,7 +155,7 @@ module ripple {
             switch (this.current()) {
                 case '(':
                     this.skipOne(); // Skip over '('
-                    return grow(this.parseOne(), _ => this.parseOne());
+                    return grow(this.parseOne(), _ => this.parseOne(), isDefined, x => x);
                 case ')':
                     this.skipOne(); // Skip over ')'
                     return undefined;
@@ -180,7 +186,7 @@ module ripple {
         return new Source(text).parseOne();
     }
 
-    function assertType(typeCheck: (any) => boolean, value: any): void {
+    function assertType(typeCheck: (x: any) => boolean, value: any): void {
         if (!typeCheck(value)) {
             throw new Error("Value was not of the expected type");
         }

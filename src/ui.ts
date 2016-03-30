@@ -1,7 +1,7 @@
 
 module ui {
 
-    export function runIt() {
+    export function runIt(): void {
         const text = $("#input-text").val();
         const asts = ripple.parseAllText(text);
 
@@ -22,13 +22,13 @@ module ui {
         updateDefines();
     }
 
-    function batchDiv(results) {
+    function batchDiv(results): JQuery {
         const batch = $("<div></div>").addClass("result-batch");
         results.forEach(r => batch.append(r));
         return batch;
     }
 
-    function resultDiv(expr: string, res: string) {
+    function resultDiv(expr: string, res: string): JQuery {
         return $("<div></div>")
             .addClass("result")
             .append($("<div></div>").addClass("input-expr").text(expr))
@@ -36,7 +36,7 @@ module ui {
             .click(() => $("#input-text").val(expr));
     }
 
-    function errorDiv(expr: string, res: string) {
+    function errorDiv(expr: string, res: string): JQuery {
         return $("<div></div>")
             .addClass("error-result")
             .append($("<div></div>").addClass("input-expr").text(expr))
@@ -44,7 +44,7 @@ module ui {
             .click(() => $("#input-text").val(expr));
     }
 
-    function updateDefines() {
+    function updateDefines(): void {
         const definesDiv = $("#defines").empty();
         const defineIds = Object.keys(ripple.defines)
             .filter(key => ripple.defines.hasOwnProperty(key) && !(ripple.isPrimitive(ripple.defines[key])))
@@ -52,13 +52,13 @@ module ui {
             .forEach(key => definesDiv.append(defineDiv(key, ripple.format(ripple.defines[key]))));
     }
 
-    function defineDiv(name: string, value: string) {
+    function defineDiv(name: string, value: string): JQuery {
         return $("<div></div>").addClass("define")
             .append($("<div></div>").addClass("define-name").text(name))
             .append($("<div></div>").addClass("define-value").text(value));
     }
 
-    export function buildIt() {
+    export function buildIt(): void {
         const text = $("#input-text").val();
         const asts = ripple.parseAllText(text);
         const artifact = $("#artifact");
@@ -72,19 +72,16 @@ module ui {
 
     var atomCount = 0;
 
-    function build(ast: any, depth: number) {
+    function build(ast: any, depth: number): JQuery {
         if (ripple.isArray(ast)) {
-            const d = buildDiv("combo combo-" + (depth % 4));
+            const d = $("<div></div").addClass("combo combo-" + (depth % 4));
             ast.forEach(child => d.append(build(child, depth + 1)));
             return d;
         }
 
         atomCount++;
-        return buildDiv("atom atom-" + (atomCount % 4))
+        return $("<div></div")
+            .addClass("atom atom-" + (atomCount % 4))
             .text(ripple.format(ast));
-    }
-
-    function buildDiv(className?: string) {
-        return $("<div></div").addClass(className);
     }
 }
