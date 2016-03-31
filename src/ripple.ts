@@ -37,8 +37,8 @@ module ripple {
     class Special {
         id: string;
         arity: number;
-        f: (exprs: any[], locals: any[]) => any;
-        constructor(id: string, arity: number, f: (exprs: any[], locals: any[]) => any) {
+        f: (exprs: any[], locals: Cons) => any;
+        constructor(id: string, arity: number, f: (exprs: any[], locals: Cons) => any) {
             this.id = id;
             this.arity = arity;
             this.f = f;
@@ -61,8 +61,8 @@ module ripple {
     class Lambda {
         params: string[];
         body: any;
-        locals: any[];
-        constructor(params: string[], body: any, locals: any[]) {
+        locals: Cons;
+        constructor(params: string[], body: any, locals: Cons) {
             this.params = params;
             this.body = body;
             this.locals = locals;
@@ -203,10 +203,10 @@ module ripple {
         return value.id;
     }
 
-    function symbolLookup(id: string, locals: any[]): any {
-        for (let m = locals.length - 1; m >= 0; --m) {
-            if (locals[m].hasOwnProperty(id)) {
-                return locals[m][id];
+    function symbolLookup(id: string, locals: Cons): any {
+        for (; isCons(locals); locals = locals.tail) {
+            if (mori.hasKey(locals.head, id)) {
+                return mori.get(locals.head, id);
             }
         }
 
@@ -217,15 +217,10 @@ module ripple {
         throw new Error(`Symbol "${id}" not recognized`);
     }
 
-    function bindLocal(params: string[], values: any[], locals: any[]): any[] {
-        if (params.length > 0) {
-            const frame = {};
-            params.forEach((_, i) => frame[params[i]] = values[i]);
-            locals = locals.slice(0);
-            locals.push(frame);
-        }
-
-        return locals;
+    function consLocals(params: string[], values: any[], locals: Cons): Cons {
+        return params.length === 0
+            ? locals
+            : new Cons(mori.zipmap(params, values), locals);
     }
 
     export const defines = {};
@@ -274,7 +269,7 @@ module ripple {
 
     const specials = {};
 
-    function defineSpecial(id: string, arity: number, f: (exprs: any[], locals: any[]) => any) {
+    function defineSpecial(id: string, arity: number, f: (exprs: any[], locals: Cons) => any) {
         specials[id] = new Special(id, arity, f);
     }
 
@@ -291,7 +286,7 @@ module ripple {
         define(symbolId(exprs[0]), eval(exprs[1], locals))
     );
     defineSpecial("let", 3, (exprs, locals) =>
-        eval(exprs[2], bindLocal([symbolId(exprs[0])], [eval(exprs[1], locals)], locals))
+        eval(exprs[2], consLocals([symbolId(exprs[0])], [eval(exprs[1], locals)], locals))
     );
     defineSpecial("function", 2, (exprs, locals) =>
         new Lambda(exprs[0].map(symbolId), exprs[1], locals)
@@ -307,11 +302,11 @@ module ripple {
 
         if (isLambda(first)) {
             assertArity("Function", first.params.length, rest.length);
-            return eval(first.body, bindLocal(first.params, rest, first.locals));
+            return eval(first.body, consLocals(first.params, rest, first.locals));
         }
     }
 
-    export function eval(expr: any, locals: any[] = []): any {
+    export function eval(expr: any, locals: Cons = null): any {
         if (isArray(expr)) {
             if (expr.length === 0) {
                 return null;
