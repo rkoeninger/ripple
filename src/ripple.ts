@@ -37,8 +37,8 @@ module ripple {
     class Special {
         id: string;
         arity: number;
-        f: (exprs: any[], stack: any[]) => any;
-        constructor(id: string, arity: number, f: (exprs: any[], stack: any[]) => any) {
+        f: (exprs: any[], locals: any[]) => any;
+        constructor(id: string, arity: number, f: (exprs: any[], locals: any[]) => any) {
             this.id = id;
             this.arity = arity;
             this.f = f;
@@ -61,11 +61,11 @@ module ripple {
     class Lambda {
         params: string[];
         body: any;
-        stack: any[];
-        constructor(params: string[], body: any, stack: any[]) {
+        locals: any[];
+        constructor(params: string[], body: any, locals: any[]) {
             this.params = params;
             this.body = body;
-            this.stack = stack;
+            this.locals = locals;
         }
         toString = (): string => format([
             new Symbol("function"),
@@ -131,7 +131,7 @@ module ripple {
             return this.text.substring(startingPos, this.pos - 1);
         }
         private readLiteral(): any {
-            const startingPos = this.skipWhile(x => x !== ')' && x !== ')' && /\S/.test(x));
+            const startingPos = this.skipWhile(x => x !== '(' && x !== ')' && /\S/.test(x));
             const unparsedLiteral = this.text.substring(startingPos, this.pos);
 
             if (/^\x2D?\d/.test(unparsedLiteral)) {
@@ -203,10 +203,10 @@ module ripple {
         return value.id;
     }
 
-    function symbolLookup(id: string, stack: any[]): any {
-        for (let m = stack.length - 1; m >= 0; --m) {
-            if (stack[m].hasOwnProperty(id)) {
-                return stack[m][id];
+    function symbolLookup(id: string, locals: any[]): any {
+        for (let m = locals.length - 1; m >= 0; --m) {
+            if (locals[m].hasOwnProperty(id)) {
+                return locals[m][id];
             }
         }
 
@@ -217,15 +217,15 @@ module ripple {
         throw new Error(`Symbol "${id}" not recognized`);
     }
 
-    function pushLocalStack(params: string[], values: any[], stack: any[]): any[] {
+    function bindLocal(params: string[], values: any[], locals: any[]): any[] {
         if (params.length > 0) {
             const frame = {};
             params.forEach((_, i) => frame[params[i]] = values[i]);
-            stack = stack.slice(0);
-            stack.push(frame);
+            locals = locals.slice(0);
+            locals.push(frame);
         }
 
-        return stack;
+        return locals;
     }
 
     export const defines = {};
@@ -274,27 +274,27 @@ module ripple {
 
     const specials = {};
 
-    function defineSpecial(id: string, arity: number, f: (exprs: any[], stack: any[]) => any) {
+    function defineSpecial(id: string, arity: number, f: (exprs: any[], locals: any[]) => any) {
         specials[id] = new Special(id, arity, f);
     }
 
-    defineSpecial("if", 3, (exprs, stack) =>
-        isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : eval(exprs[2], stack)
+    defineSpecial("if", 3, (exprs, locals) =>
+        isTruthy(eval(exprs[0], locals)) ? eval(exprs[1], locals) : eval(exprs[2], locals)
     );
-    defineSpecial("and", 2, (exprs, stack) =>
-        isTruthy(eval(exprs[0], stack)) ? eval(exprs[1], stack) : false
+    defineSpecial("and", 2, (exprs, locals) =>
+        isTruthy(eval(exprs[0], locals)) ? eval(exprs[1], locals) : false
     );
-    defineSpecial("or", 2, (exprs, stack) =>
-        isTruthy(eval(exprs[0], stack)) ? true : eval(exprs[1], stack)
+    defineSpecial("or", 2, (exprs, locals) =>
+        isTruthy(eval(exprs[0], locals)) ? true : eval(exprs[1], locals)
     );
-    defineSpecial("define", 2, (exprs, stack) =>
-        define(symbolId(exprs[0]), eval(exprs[1], stack))
+    defineSpecial("define", 2, (exprs, locals) =>
+        define(symbolId(exprs[0]), eval(exprs[1], locals))
     );
-    defineSpecial("let", 3, (exprs, stack) =>
-        eval(exprs[2], pushLocalStack([symbolId(exprs[0])], [eval(exprs[1], stack)], stack))
+    defineSpecial("let", 3, (exprs, locals) =>
+        eval(exprs[2], bindLocal([symbolId(exprs[0])], [eval(exprs[1], locals)], locals))
     );
-    defineSpecial("function", 2, (exprs, stack) =>
-        new Lambda(exprs[0].map(symbolId), exprs[1], stack)
+    defineSpecial("function", 2, (exprs, locals) =>
+        new Lambda(exprs[0].map(symbolId), exprs[1], locals)
     );
 
     function apply(first: any, rest: any[]): any {
@@ -307,11 +307,11 @@ module ripple {
 
         if (isLambda(first)) {
             assertArity("Function", first.params.length, rest.length);
-            return eval(first.body, pushLocalStack(first.params, rest, first.stack));
+            return eval(first.body, bindLocal(first.params, rest, first.locals));
         }
     }
 
-    export function eval(expr: any, stack: any[] = []): any {
+    export function eval(expr: any, locals: any[] = []): any {
         if (isArray(expr)) {
             if (expr.length === 0) {
                 return null;
@@ -322,15 +322,15 @@ module ripple {
             if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
                 const special = specials[first.id];
                 assertArity(`Special form "${special.id}"`, special.arity, rest.length);
-                return special.f(rest, stack);
+                return special.f(rest, locals);
             }
 
-            const [firstValue, ...restValues] = expr.map(x => eval(x, stack));
+            const [firstValue, ...restValues] = expr.map(x => eval(x, locals));
             return apply(firstValue, restValues);
         }
 
         if (isSymbol(expr)) {
-            return symbolLookup(expr.id, stack);
+            return symbolLookup(expr.id, locals);
         }
 
         return expr;
