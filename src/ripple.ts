@@ -240,30 +240,6 @@ module ripple {
         return define(id, new Primitive(id, arity, f));
     }
 
-    definePrimitive("=", 2, args => args[0] === args[1]);
-    definePrimitive("arity", 1, args => {
-        const [f] = args;
-        if (isPrimitive(f)) { return f.arity; }
-        else if (isLambda(f)) { return f.params.length; }
-        else { throw new Error("Must be function"); }
-    });
-    definePrimitive("symbol", 1, args => {
-        const [s] = args;
-        if (isString(s)) { return new Symbol(s); }
-        else { throw new Error("Must be string"); }
-    });
-    definePrimitive("cons", 2, args => new Cons(args[0], args[1]));
-    definePrimitive("head", 1, args => {
-        const [c] = args;
-        if (isCons(c)) { return c.head; }
-        else { throw new Error("Must be Cons"); }
-    });
-    definePrimitive("tail", 1, args => {
-        const [c] = args;
-        if (isCons(c)) { return c.tail; }
-        else { throw new Error("Must be Cons"); }
-    });
-
     function defineNumBinOp<A extends RValue>(id: string, f: (x: number, y: number) => A) {
         definePrimitive(id, 2, args => {
             const [x, y] = args;
@@ -284,6 +260,29 @@ module ripple {
         definePrimitive(id, 1, args => f(args[0]));
     }
 
+    function defineConsOp(id: string, f: (x: Cons) => RValue) {
+        definePrimitive(id, 1, args => {
+            const [c] = args;
+            if (isCons(c)) { return f(c); }
+            else { throw new Error("Must be Cons"); }
+        });
+    }
+
+    definePrimitive("arity", 1, args => {
+        const [f] = args;
+        if (isPrimitive(f)) { return f.arity; }
+        else if (isLambda(f)) { return f.params.length; }
+        else { throw new Error("Must be function"); }
+    });
+    definePrimitive("symbol", 1, args => {
+        const [s] = args;
+        if (isString(s)) { return new Symbol(s); }
+        else { throw new Error("Must be string"); }
+    });
+    definePrimitive("=", 2, args => args[0] === args[1]);
+    definePrimitive("cons", 2, args => new Cons(args[0], args[1]));
+    defineConsOp("head", x => x.head);
+    defineConsOp("tail", x => x.tail);
     defineNumBinOp<number>("+", (x, y) => x + y);
     defineNumBinOp<number>("-", (x, y) => x - y);
     defineNumBinOp<number>("*", (x, y) => x * y);
