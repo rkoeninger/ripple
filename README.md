@@ -6,20 +6,16 @@ jQuery typescript definition found at:
 https://raw.githubusercontent.com/DefinitelyTyped/DefinitelyTyped/master/jquery/jquery.d.ts
 
 ```
-(define do (function (x y) y))
-
 (define zero? (function (x) (= x 0)))
 
 (define replicate
   (function (n x)
     (let helper
-      (function (f a n x)
+      (function (f c n x)
         (if (zero? n)
-          a
-          (do
-            (push a x)
-            (f f a (- n 1) x))))
-      (helper helper (array) n x))))
+          c
+          (f f (cons x c) (- n 1) x)))
+      (helper helper null n x))))
 
 (replicate 5 "hi")
 ```

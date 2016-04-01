@@ -11,7 +11,7 @@ module ui {
         return jQuery.extend({}, x);
     }
 
-    function saveHistory() {
+    function saveHistory(): void {
         history.push({
             defines: shallowClone(ripple.defines),
             entries: entries.slice(0),
@@ -19,7 +19,7 @@ module ui {
         });
     }
 
-    export function undo() {
+    export function undo(): void {
         if (history.length > 0) {
             var previous = history.pop();
             entries = previous.entries;

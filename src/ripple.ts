@@ -2,7 +2,8 @@
 module ripple {
 
     // TODO: definite type enum for values in ripple
-    //type Value = boolean | number | string | Symbol | Cons | Primitive | Lambda;
+    type RValue = boolean | number | string | Symbol | Cons | Primitive | Lambda;
+    type IValue = RValue | RValue[]; // also includes values internal to interpreter
 
     function grow<A, B>(initial: A, next: (x: A) => A, check: (x: A) => boolean, select: (x: A) => B): B[] {
         const result = [];
@@ -89,7 +90,7 @@ module ripple {
     export function isPrimitive(x: any): x is Primitive { return x instanceof Primitive; }
     export function isArray(x: any): x is [] { return Array.isArray(x); }
 
-    export function format(value: any): string {
+    export function format(value: IValue): string {
         if (isUndefined(value)) { throw new Error("Can't print undefined value"); }
         if (isNull(value)) { return "null"; }
         if (isArray(value)) { return `(${value.map(x => format(x)).join(" ")})`; }
@@ -130,7 +131,7 @@ module ripple {
             this.skipOne(); // Skip over closing '\"'
             return this.text.substring(startingPos, this.pos - 1);
         }
-        private readLiteral(): any {
+        private readLiteral(): RValue {
             const startingPos = this.skipWhile(x => x !== '(' && x !== ')' && /\S/.test(x));
             const unparsedLiteral = this.text.substring(startingPos, this.pos);
 
@@ -145,7 +146,7 @@ module ripple {
                 default: return new Symbol(unparsedLiteral);
             }
         }
-        parseOne(): any {
+        parseOne(): IValue {
             this.skipWhiteSpace();
 
             if (this.isDone()) {
@@ -166,7 +167,7 @@ module ripple {
                     return this.readLiteral();
             }
         }
-        parseAll(): any[] {
+        parseAll(): IValue[] {
             const result = [];
             this.skipWhiteSpace();
 
@@ -178,11 +179,11 @@ module ripple {
         }
     }
 
-    export function parseAllText(text: string): any[] {
+    export function parseAllText(text: string): IValue[] {
         return new Source(text).parseAll();
     }
 
-    export function parseOneText(text: string): any {
+    export function parseOneText(text: string): IValue {
         return new Source(text).parseOne();
     }
 
@@ -192,15 +193,15 @@ module ripple {
         }
     }
 
-    function symbolId(value: any): string {
-        if (! isSymbol(value)) {
-            throw new Error("Symbol expected, but instead: " + format(value));
+    function symbolId(value: IValue): string {
+        if (isSymbol(value)) {
+            return value.id;
         }
 
-        return value.id;
+        throw new Error("Symbol literal expected, but instead: " + format(value));
     }
 
-    function symbolLookup(id: string, locals: Cons): any {
+    function symbolLookup(id: string, locals: Cons): RValue {
         for (; isCons(locals); locals = locals.tail) {
             if (mori.hasKey(locals.head, id)) {
                 return mori.get(locals.head, id);
@@ -214,58 +215,99 @@ module ripple {
         throw new Error(`Symbol "${id}" not recognized`);
     }
 
-    function consLocals(params: string[], values: any[], locals: Cons): Cons {
+    function consLocals(params: string[], values: RValue[], locals: Cons): Cons {
         return params.length === 0
             ? locals
             : new Cons(mori.zipmap(params, values), locals);
     }
 
+    function consMap(f: (x: RValue) => RValue, c: RValue): RValue {
+        if (isCons(c)) {
+            return new Cons(f(c.head), consMap(f, c.tail));
+        }
+
+        return c;
+    }
+
     export var defines = {};
 
-    function define(id: string, value: any): any {
+    function define(id: string, value: RValue): RValue {
         defines[id] = value;
         return value;
     }
 
-    export function definePrimitive(id: string, arity: number, f: (args: any[]) => any): any {
+    export function definePrimitive(id: string, arity: number, f: (args: RValue[]) => RValue): RValue {
         return define(id, new Primitive(id, arity, f));
     }
 
-    definePrimitive("null?", 1, args => isNull(args[0]));
     definePrimitive("=", 2, args => args[0] === args[1]);
-    definePrimitive("function?", 1, args => isLambda(args[0]) || isPrimitive(args[0]));
-    definePrimitive("arity", 1, args => args[0].arity || args[0].args.length);
-    definePrimitive("symbol?", 1, args => isSymbol(args[0]));
-    definePrimitive("symbol", 1, args => new Symbol(args[0]));
-    definePrimitive("cons?", 1, args => isCons(args[0]));
+    definePrimitive("arity", 1, args => {
+        const [f] = args;
+        if (isPrimitive(f)) { return f.arity; }
+        else if (isLambda(f)) { return f.params.length; }
+        else { throw new Error("Must be function"); }
+    });
+    definePrimitive("symbol", 1, args => {
+        const [s] = args;
+        if (isString(s)) { return new Symbol(s); }
+        else { throw new Error("Must be string"); }
+    });
     definePrimitive("cons", 2, args => new Cons(args[0], args[1]));
-    definePrimitive("head", 1, args => args[0].head);
-    definePrimitive("tail", 1, args => args[0].tail);
-    definePrimitive("array?", 1, args => isArray(args[0]));
-    definePrimitive("array", 0, args => []);
-    definePrimitive("push", 2, args => args[0].push(args[1]));
-    definePrimitive("get", 2, args => args[0][args[1]]);
-    definePrimitive("set", 3, args => args[0][args[1]] = args[2]);
-    definePrimitive("number?", 1, args => isNumber(args[0]));
-    definePrimitive("+", 2, args => args[0] + args[1]);
-    definePrimitive("-", 2, args => args[0] - args[1]);
-    definePrimitive("*", 2, args => args[0] * args[1]);
-    definePrimitive("/", 2, args => args[0] / args[1]);
-    definePrimitive("<", 2, args => args[0] < args[1]);
-    definePrimitive(">", 2, args => args[0] > args[1]);
-    definePrimitive("<=", 2, args => args[0] <= args[1]);
-    definePrimitive(">=", 2, args => args[0] >= args[1]);
-    definePrimitive("mod", 2, args => args[0] % args[1]);
-    definePrimitive("sqrt", 1, args => Math.sqrt(args[0]));
-    definePrimitive("negate", 1, args => args[0] * -1);
-    definePrimitive("boolean?", 1, args => isBoolean(args[0]));
+    definePrimitive("head", 1, args => {
+        const [c] = args;
+        if (isCons(c)) { return c.head; }
+        else { throw new Error("Must be Cons"); }
+    });
+    definePrimitive("tail", 1, args => {
+        const [c] = args;
+        if (isCons(c)) { return c.tail; }
+        else { throw new Error("Must be Cons"); }
+    });
+
+    function defineNumBinOp<A extends RValue>(id: string, f: (x: number, y: number) => A) {
+        definePrimitive(id, 2, args => {
+            const [x, y] = args;
+            if (isNumber(x) && isNumber(y)) { return f(x, y); }
+            else { throw new Error("Must be numbers"); }
+        });
+    }
+
+    function defineNumUnOp(id: string, f: (x: number) => number) {
+        definePrimitive(id, 1, args => {
+            const [x] = args;
+            if (isNumber(x)) { return f(x); }
+            else { throw new Error("Must be a number"); }
+        });
+    }
+
+    function defineTypeCheckOp(id: string, f: (x: any) => boolean) {
+        definePrimitive(id, 1, args => f(args[0]));
+    }
+
+    defineNumBinOp<number>("+", (x, y) => x + y);
+    defineNumBinOp<number>("-", (x, y) => x - y);
+    defineNumBinOp<number>("*", (x, y) => x * y);
+    defineNumBinOp<number>("/", (x, y) => x / y);
+    defineNumBinOp<number>("mod", (x, y) => x % y);
+    defineNumBinOp<boolean>("<", (x, y) => x < y);
+    defineNumBinOp<boolean>(">", (x, y) => x > y);
+    defineNumBinOp<boolean>("<=", (x, y) => x <= y);
+    defineNumBinOp<boolean>(">=", (x, y) => x >= y);
+    defineNumUnOp("sqrt", x => Math.sqrt(x));
+    defineNumUnOp("negate", x => x * -1);
+    defineTypeCheckOp("boolean?", isBoolean);
+    defineTypeCheckOp("string?", isString);
+    defineTypeCheckOp("cons?", isCons);
+    defineTypeCheckOp("number?", isNumber);
+    defineTypeCheckOp("symbol?", isSymbol);
+    defineTypeCheckOp("function?", isFunction);
+    defineTypeCheckOp("null?", isNull);
     definePrimitive("not", 1, args => !args[0]);
-    definePrimitive("string?", 1, args => isString(args[0]));
     definePrimitive("concat", 2, args => (args[0] || "").toString() + (args[1] || "").toString());
 
     const specials = {};
 
-    function defineSpecial(id: string, arity: number, f: (exprs: any[], locals: Cons) => any) {
+    function defineSpecial(id: string, arity: number, f: (exprs: IValue[], locals: Cons) => RValue) {
         specials[id] = new Special(id, arity, f);
     }
 
@@ -284,11 +326,16 @@ module ripple {
     defineSpecial("let", 3, (exprs, locals) =>
         eval(exprs[2], consLocals([symbolId(exprs[0])], [eval(exprs[1], locals)], locals))
     );
-    defineSpecial("function", 2, (exprs, locals) =>
-        new Lambda(exprs[0].map(symbolId), exprs[1], locals)
-    );
+    defineSpecial("function", 2, (exprs, locals) => {
+        const params = exprs[0];
+        if (isArray(params)) {
+            return new Lambda(params.map(symbolId), exprs[1], locals);
+        }
 
-    function apply(first: any, rest: any[]): any {
+        throw new Error("Argument list expected at " + format(params));
+    });
+
+    function apply(first: RValue, rest: RValue[]): RValue {
         if (! isFunction(first)) {
             throw new Error(`First item in an application must be a function, but instead: ${format(first)}`);
         }
@@ -304,7 +351,7 @@ module ripple {
         }
     }
 
-    export function eval(expr: any, locals: Cons = null): any {
+    export function eval(expr: IValue, locals: Cons = null): RValue {
         if (isArray(expr)) {
             if (expr.length === 0) {
                 return null;
@@ -320,11 +367,11 @@ module ripple {
             const [firstValue, ...restValues] = expr.map(x => eval(x, locals));
             return apply(firstValue, restValues);
         }
-
-        if (isSymbol(expr)) {
+        else if (isSymbol(expr)) {
             return symbolLookup(expr.id, locals);
         }
-
-        return expr;
+        else {
+            return expr;
+        }
     }
 }
