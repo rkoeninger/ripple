@@ -22,6 +22,7 @@
             }).val("(define say (function (x) (function () (log x))))\n\n(say \"hello\")");
             $("#run-button").click(function () { ui.runIt(); });
             $("#build-button").click(function () { ui.buildIt(); });
+            $("#undo-button").click(function () { ui.undo(); });
         });
         </script>
     </head>
@@ -29,6 +30,7 @@
         <textarea id="input-text" rows="4" cols="50"></textarea>
         <button id="run-button">Run</button>
         <button id="build-button">Build</button>
+        <button id="undo-button">Undo</button>
         <div class="clear"></div>
         <div id="results"></div>
         <div id="defines"></div>

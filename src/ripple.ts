@@ -223,7 +223,7 @@ module ripple {
             : new Cons(mori.zipmap(params, values), locals);
     }
 
-    export const defines = {};
+    export var defines = {};
 
     function define(id: string, value: any): any {
         defines[id] = value;

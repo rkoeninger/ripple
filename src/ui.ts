@@ -1,7 +1,32 @@
 
 module ui {
 
+    export var history = [];
+    export var entries = [];
+
+    function shallowClone(x) {
+        return jQuery.extend({}, x);
+    }
+
+    function saveHistory() {
+        history.push({
+            defines: shallowClone(ripple.defines),
+            entries: entries.slice(0)
+        });
+    }
+
+    export function undo() {
+        if (history.length > 0) {
+            var previous = history.pop();
+            entries = previous.entries;
+            ripple.defines = previous.defines;
+        }
+        updateEntries();
+        updateDefines();
+    }
+
     export function runIt(): void {
+        saveHistory();
         const text = $("#input-text").val();
         const asts = ripple.parseAllText(text);
 
@@ -12,14 +37,25 @@ module ui {
         const batch = asts.map(ast => {
             const syntax = ripple.format(ast);
             try {
-                return resultDiv(syntax, ripple.format(ripple.eval(ast)));
+                return { status: "success", text: syntax, value: ripple.format(ripple.eval(ast)) };
             } catch (e) {
                 console.error(e);
-                return errorDiv(syntax, e.toString());
+                return { status: "error", text: syntax, error: e };
             }
         });
-        $("#results").prepend(batch.length === 1 ? batch[0] : batchDiv(batch));
+        entries.push(batch);
+        updateEntries();
         updateDefines();
+    }
+
+    function updateEntries(): void {
+        const results = $("#results").empty();
+        entries.forEach(batch => {
+            batch = batch.map(x => x.status === "success"
+                ? resultDiv(x.text, x.value)
+                : errorDiv(x.text, x.error.toString()));
+            results.prepend(batch.length === 1 ? batch[0] : batchDiv(batch));
+        });
     }
 
     function batchDiv(results): JQuery {
