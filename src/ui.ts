@@ -1,6 +1,27 @@
 
 module ui {
 
+    export function inline(): void {
+        const inputText = $("#input-text");
+        const ast = ripple.parseOneText(inputText.val());
+        sub(ast, []);
+        inputText.val(ripple.format(ast));
+    }
+
+    function sub(ast, ignores: string[]) {
+        if (ripple.isArray(ast)) {
+            for (let i = 0; i < ast.length; ++i) {
+                if (ripple.isSymbol(ast[i]) // TODO: if it's a let, add symbol to ignore list for further recursions
+                    && ignores.indexOf(ast[i].id) < 0
+                    && ripple.defines.hasOwnProperty(ast[i].id)) {
+                    ast[i] = ripple.defines[ast[i].id];
+                } else {
+                    sub(ast[i], ignores);
+                }
+            }
+        }
+    }
+
     export var history = [];
     export var entries = [];
     export var buffer = "";

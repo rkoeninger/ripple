@@ -23,6 +23,7 @@
             $("#run-button").click(function () { ui.runIt(); });
             $("#build-button").click(function () { ui.buildIt(); });
             $("#undo-button").click(function () { ui.undo(); });
+            $("#inline-button").click(function () { ui.inline(); });
         });
         </script>
     </head>
@@ -31,6 +32,7 @@
         <button id="run-button">Run</button>
         <button id="build-button">Build</button>
         <button id="undo-button">Undo</button>
+        <button id="inline-button">Inline</button>
         <textarea id="buffer-text" rows="4" cols="25" readonly></textarea>
         <div class="clear"></div>
         <div id="results"></div>

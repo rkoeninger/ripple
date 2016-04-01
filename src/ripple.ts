@@ -83,7 +83,7 @@ module ripple {
     function isTruthy(x: any): boolean { return x !== null && x !== false; }
     function isNumber(x: any): x is number { return typeof x === "number"; }
     function isString(x: any): x is string { return typeof x === "string"; }
-    function isSymbol(x: any): x is Symbol { return x instanceof Symbol; }
+    export function isSymbol(x: any): x is Symbol { return x instanceof Symbol; }
     function isCons(x: any): x is Cons { return x instanceof Cons; }
     function isFunction(x: any): x is Function { return x instanceof Lambda || x instanceof Primitive; }
     function isLambda(x: any): x is Lambda { return x instanceof Lambda; }
