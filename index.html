@@ -17,6 +17,9 @@
                         case 46: // Delete
                             $("#input-text").val("");
                             break;
+                        case 35: // End
+                            ui.closeParens();
+                            break;
                     }
                 }
             }).val("(log \"1\")");

@@ -1,6 +1,28 @@
 
 module ui {
 
+    function repeatS(ch, n) {
+        var s = "";
+        for (let i = 0; i < n; ++i) {
+            s += ch;
+        }
+        return s;
+    }
+
+    export function closeParens(): void {
+        const inputText = $("#input-text");
+        const text = inputText.val();
+
+        var count = 0;
+
+        for (let i = 0; i < text.length; ++i) {
+            if (text[i] === '(') { count++; }
+            else if (text[i] === ')') { count--; }
+        }
+
+        inputText.val(text + repeatS(')', count));
+    }
+
     export function inline(): void {
         const inputText = $("#input-text");
         const ast = ripple.parseOneText(inputText.val());
