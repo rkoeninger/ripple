@@ -186,12 +186,6 @@ module ripple {
         return new Source(text).parseOne();
     }
 
-    function assertType(typeCheck: (x: any) => boolean, value: any): void {
-        if (!typeCheck(value)) {
-            throw new Error("Value was not of the expected type");
-        }
-    }
-
     function assertArity(type: string, expected: number, actual: number): void {
         if (expected !== actual) {
             throw new Error(`${type} takes ${expected} args, but given ${actual}`);
@@ -199,7 +193,10 @@ module ripple {
     }
 
     function symbolId(value: any): string {
-        assertType(isSymbol, value);
+        if (! isSymbol(value)) {
+            throw new Error("Symbol expected, but instead: " + format(value));
+        }
+
         return value.id;
     }
 
@@ -292,7 +289,9 @@ module ripple {
     );
 
     function apply(first: any, rest: any[]): any {
-        assertType(isFunction, first);
+        if (! isFunction(first)) {
+            throw new Error(`First item in an application must be a function, but instead: ${format(first)}`);
+        }
 
         if (isPrimitive(first)) {
             assertArity(`Function "${first.id}"`, first.arity, rest.length);
@@ -312,7 +311,6 @@ module ripple {
             }
 
             const [first, ...rest] = expr;
-
             if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
                 const special = specials[first.id];
                 assertArity(`Special form "${special.id}"`, special.arity, rest.length);
