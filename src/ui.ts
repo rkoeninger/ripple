@@ -3,6 +3,9 @@ module ui {
 
     export var history = [];
     export var entries = [];
+    export var buffer = "";
+
+    ripple.definePrimitive("log", 1, args => { buffer += args[0] + "\r\n"; return null; });
 
     function shallowClone(x) {
         return jQuery.extend({}, x);
@@ -11,7 +14,8 @@ module ui {
     function saveHistory() {
         history.push({
             defines: shallowClone(ripple.defines),
-            entries: entries.slice(0)
+            entries: entries.slice(0),
+            buffer: buffer
         });
     }
 
@@ -20,9 +24,11 @@ module ui {
             var previous = history.pop();
             entries = previous.entries;
             ripple.defines = previous.defines;
+            buffer = previous.buffer;
         }
         updateEntries();
         updateDefines();
+        updateBuffer();
     }
 
     export function runIt(): void {
@@ -46,6 +52,11 @@ module ui {
         entries.push(batch);
         updateEntries();
         updateDefines();
+        updateBuffer();
+    }
+
+    export function updateBuffer(): void {
+        $("#buffer-text").val(buffer);
     }
 
     function updateEntries(): void {

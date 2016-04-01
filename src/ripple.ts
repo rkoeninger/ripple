@@ -230,7 +230,7 @@ module ripple {
         return value;
     }
 
-    function definePrimitive(id: string, arity: number, f: (args: any[]) => any): any {
+    export function definePrimitive(id: string, arity: number, f: (args: any[]) => any): any {
         return define(id, new Primitive(id, arity, f));
     }
 
@@ -265,7 +265,6 @@ module ripple {
     definePrimitive("not", 1, args => !args[0]);
     definePrimitive("string?", 1, args => isString(args[0]));
     definePrimitive("concat", 2, args => (args[0] || "").toString() + (args[1] || "").toString());
-    definePrimitive("log", 1, args => { console.log(args[0]); return null; });
 
     const specials = {};
 

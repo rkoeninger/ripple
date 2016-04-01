@@ -19,7 +19,7 @@
                             break;
                     }
                 }
-            }).val("(define say (function (x) (function () (log x))))\n\n(say \"hello\")");
+            }).val("(log \"1\")");
             $("#run-button").click(function () { ui.runIt(); });
             $("#build-button").click(function () { ui.buildIt(); });
             $("#undo-button").click(function () { ui.undo(); });
@@ -31,6 +31,7 @@
         <button id="run-button">Run</button>
         <button id="build-button">Build</button>
         <button id="undo-button">Undo</button>
+        <textarea id="buffer-text" rows="4" cols="25" readonly></textarea>
         <div class="clear"></div>
         <div id="results"></div>
         <div id="defines"></div>
