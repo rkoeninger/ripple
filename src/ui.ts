@@ -99,7 +99,7 @@ module ui {
                 return { status: "error", text: syntax, error: e };
             }
         });
-        entries.push(batch);
+        entries.push({ results: batch, text: text });
         updateEntries();
         updateDefines();
         updateBuffer();
@@ -110,13 +110,14 @@ module ui {
     }
 
     function updateEntries(): void {
-        const results = $("#results").empty();
-        entries.forEach(batch => {
-            batch = batch.map(x => x.status === "success"
+        const resultsDiv = $("#results").empty();
+        entries.forEach(({results, text}) => {
+            results = results.map(x => x.status === "success"
                 ? resultDiv(x.text, x.value)
                 : errorDiv(x.text, x.error.toString()));
-            results.prepend(batch.length === 1 ? batch[0] : batchDiv(batch));
+            resultsDiv.prepend(results.length === 1 ? results[0] : batchDiv(results));
         });
+        $("#input-text").val(entries.length === 0 ? "" : entries[entries.length - 1].text);
     }
 
     function batchDiv(results): JQuery {
