@@ -22,7 +22,7 @@ module ripple {
             this.tail = tail;
         }
         static fromArray = (array: any[]): any => array.reduceRight((tail, head) => new Cons(head, tail), null);
-        toArray = (): any[] => grow(this, x => x.tail, isCons, x => x.head);
+        static toArray = (c: Cons): any[] => grow(c, x => x.tail, isCons, x => x.head);
         toString = (): string => `(${format(this.head)} ${format(this.tail)})`;
     }
 
@@ -67,10 +67,14 @@ module ripple {
             this.body = body;
             this.locals = locals;
         }
-        toString = (): string => format([
-            new Symbol("function"),
-            this.params.map(x => new Symbol(x)),
-            this.body]);
+        toString = (): string => format(
+            mori.reduce(
+                (acc, frame) => mori.reduce(
+                    (acc, key) => [new Symbol("let"), new Symbol(key), mori.get(frame, key), acc],
+                    acc,
+                    mori.keys(frame)),
+                [new Symbol("function"), this.params.map(x => new Symbol(x)), this.body],
+                Cons.toArray(this.locals)));
     }
 
     type Function = Primitive | Lambda;
