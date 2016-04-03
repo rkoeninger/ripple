@@ -1,7 +1,6 @@
 
 module ripple {
 
-    // TODO: definite type enum for values in ripple
     type RValue = boolean | number | string | Symbol | Cons | Primitive | Lambda;
     type IValue = RValue | RValue[]; // also includes values internal to interpreter
 
@@ -27,7 +26,7 @@ module ripple {
         toString = (): string => `(${format(this.head)} ${format(this.tail)})`;
     }
 
-    class Symbol {
+    export class Symbol {
         id: string;
         constructor(id: string) {
             this.id = id;

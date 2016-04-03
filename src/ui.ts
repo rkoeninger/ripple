@@ -1,6 +1,13 @@
 
 module ui {
 
+    export function dump() {
+        console.log(Object.keys(ripple.defines)
+            .filter(x => ! ripple.isPrimitive(ripple.defines[x]))
+            .map(x => ripple.format([new ripple.Symbol("define"), new ripple.Symbol(x), ripple.defines[x]]))
+            .join("\r\n\r\n"));
+    }
+
     function repeatS(ch, n) {
         var s = "";
         for (let i = 0; i < n; ++i) {
