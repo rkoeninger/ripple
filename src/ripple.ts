@@ -14,6 +14,15 @@ module ripple {
         return result;
     }
 
+    class Arity {
+        min: number;
+        max: number;
+        constructor(min: number, max: number = min) {
+            this.min = min;
+            this.max = max;
+        }
+    }
+
     class Cons {
         head: any;
         tail: any;
@@ -36,9 +45,9 @@ module ripple {
 
     class Special {
         id: string;
-        arity: number;
+        arity: Arity;
         f: (exprs: any[], locals: Cons) => any;
-        constructor(id: string, arity: number, f: (exprs: any[], locals: Cons) => any) {
+        constructor(id: string, arity: Arity, f: (exprs: any[], locals: Cons) => any) {
             this.id = id;
             this.arity = arity;
             this.f = f;
@@ -48,9 +57,9 @@ module ripple {
 
     class Primitive {
         id: string;
-        arity: number;
+        arity: Arity;
         f: (args: any[]) => any;
-        constructor(id: string, arity: number, f: (args: any[]) => any) {
+        constructor(id: string, arity: Arity, f: (args: any[]) => any) {
             this.id = id;
             this.arity = arity;
             this.f = f;
@@ -190,9 +199,15 @@ module ripple {
         return new Source(text).parseOne();
     }
 
-    function assertArity(type: string, expected: number, actual: number): void {
-        if (expected !== actual) {
-            throw new Error(`${type} takes ${expected} args, but given ${actual}`);
+    function assertArity(type: string, expected: number | Arity, actual: number): void {
+        if (isNumber(expected)) {
+            if (expected !== actual) {
+                throw new Error(`${type} takes ${expected} args, but given ${actual}`);
+            }
+        } else {
+            if (actual < expected.min || actual > expected.max) {
+                throw new Error(`${type} takes between ${expected.min} and ${expected.max} args, but given ${actual}`);
+            }
         }
     }
 
@@ -239,8 +254,8 @@ module ripple {
         return value;
     }
 
-    export function definePrimitive(id: string, arity: number, f: (args: RValue[]) => RValue): RValue {
-        return define(id, new Primitive(id, arity, f));
+    export function definePrimitive(id: string, arity: number | Arity, f: (args: RValue[]) => RValue): RValue {
+        return define(id, new Primitive(id, isNumber(arity) ? new Arity(arity) : arity, f));
     }
 
     function defineNumBinOp<A extends RValue>(id: string, f: (x: number, y: number) => A) {
@@ -271,12 +286,12 @@ module ripple {
         });
     }
 
-    definePrimitive("arity", 1, args => {
+    /*definePrimitive("arity", new Arity(1), args => {
         const [f] = args;
         if (isPrimitive(f)) { return f.arity; }
         else if (isLambda(f)) { return f.params.length; }
         else { throw new Error("Must be function"); }
-    });
+    });*/
     definePrimitive("symbol", 1, args => {
         const [s] = args;
         if (isString(s)) { return new Symbol(s); }
@@ -286,9 +301,21 @@ module ripple {
     definePrimitive("cons", 2, args => new Cons(args[0], args[1]));
     defineConsOp("head", x => x.head);
     defineConsOp("tail", x => x.tail);
-    defineNumBinOp<number>("+", (x, y) => x + y);
+    definePrimitive("+", new Arity(0, 1024), args => {
+        if (! args.every(isNumber)) {
+            throw new Error("args must be numbers");
+        } else {
+            return mori.reduce(mori.sum, args);
+        }
+    });
+    definePrimitive("*", new Arity(0, 1024), args => {
+        if (!args.every(isNumber)) {
+            throw new Error("args must be numbers");
+        } else {
+            return mori.reduce((x, y) => x * y, args);
+        }
+    });
     defineNumBinOp<number>("-", (x, y) => x - y);
-    defineNumBinOp<number>("*", (x, y) => x * y);
     defineNumBinOp<number>("/", (x, y) => x / y);
     defineNumBinOp<number>("mod", (x, y) => x % y);
     defineNumBinOp<boolean>("<", (x, y) => x < y);
@@ -304,31 +331,35 @@ module ripple {
     defineTypeCheckOp("symbol?", isSymbol);
     defineTypeCheckOp("function?", isFunction);
     defineTypeCheckOp("null?", isNull);
-    definePrimitive("not", 1, args => !args[0]);
-    definePrimitive("concat", 2, args => (args[0] || "").toString() + (args[1] || "").toString());
+    definePrimitive("not", 1, ([b]) => !b);
+    definePrimitive("str", new Arity(0, 1024), args => {
+        return args.reduce((x, y) => (x || "").toString() + (y || "").toString(), "");
+    });
 
     const specials = {};
 
-    function defineSpecial(id: string, arity: number, f: (exprs: IValue[], locals: Cons) => RValue) {
+    function defineSpecial(id: string, arity: Arity, f: (exprs: IValue[], locals: Cons) => RValue) {
         specials[id] = new Special(id, arity, f);
     }
 
-    defineSpecial("if", 3, (exprs, locals) =>
-        isTruthy(eval(exprs[0], locals)) ? eval(exprs[1], locals) : eval(exprs[2], locals)
+    defineSpecial("if", new Arity(2, 3), (exprs, locals) =>
+        isTruthy(eval(exprs[0], locals))
+            ? eval(exprs[1], locals)
+            : (exprs.length === 3 ? eval(exprs[2], locals) : null)
     );
-    defineSpecial("and", 2, (exprs, locals) =>
-        isTruthy(eval(exprs[0], locals)) ? eval(exprs[1], locals) : false
+    defineSpecial("and", new Arity(2, 1024), (exprs, locals) =>
+        exprs.every(x => isTruthy(eval(x, locals)))
     );
-    defineSpecial("or", 2, (exprs, locals) =>
-        isTruthy(eval(exprs[0], locals)) ? true : eval(exprs[1], locals)
+    defineSpecial("or", new Arity(2, 1024), (exprs, locals) =>
+        exprs.some(x => isTruthy(eval(x, locals)))
     );
-    defineSpecial("define", 2, (exprs, locals) =>
+    defineSpecial("define", new Arity(2), (exprs, locals) =>
         define(symbolId(exprs[0]), eval(exprs[1], locals))
     );
-    defineSpecial("let", 3, (exprs, locals) =>
+    defineSpecial("let", new Arity(3), (exprs, locals) =>
         eval(exprs[2], consLocals([symbolId(exprs[0])], [eval(exprs[1], locals)], locals))
     );
-    defineSpecial("function", 2, (exprs, locals) => {
+    defineSpecial("function", new Arity(2), (exprs, locals) => {
         const params = exprs[0];
         if (isArray(params)) {
             return new Lambda(params.map(symbolId), exprs[1], locals);
