@@ -4,7 +4,7 @@ module ui {
     export function dump() {
         console.log(Object.keys(ripple.defines)
             .filter(x => ! ripple.isPrimitive(ripple.defines[x]))
-            .map(x => ripple.format([new ripple.Symbol("define"), new ripple.Symbol(x), ripple.defines[x]]))
+            .map(x => ripple.format([new ripple.Symbol("def"), new ripple.Symbol(x), ripple.defines[x]]))
             .join("\r\n\r\n"));
     }
 

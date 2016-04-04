@@ -6,12 +6,12 @@ jQuery typescript definition found at:
 https://raw.githubusercontent.com/DefinitelyTyped/DefinitelyTyped/master/jquery/jquery.d.ts
 
 ```
-(define zero? (function (x) (= x 0)))
+(def zero? (fn (x) (= x 0)))
 
-(define replicate
-  (function (n x)
+(def replicate
+  (fn (n x)
     (let helper
-      (function (f c n x)
+      (fn (f c n x)
         (if (zero? n)
           c
           (f f (cons x c) (- n 1) x)))
@@ -23,7 +23,7 @@ https://raw.githubusercontent.com/DefinitelyTyped/DefinitelyTyped/master/jquery/
 Dynamic scoping test:
 
 ```
-(define l (function () (log y)))
+(def l (fn () (log y)))
 
 (let y "hi" (l))
 ```
@@ -31,7 +31,7 @@ Dynamic scoping test:
 Lexical scoping test:
 
 ```
-(define k (function (x) (function () (log x))))
+(def k (fn (x) (fn () (log x))))
 
 ((k "hi"))
 ```
@@ -39,8 +39,8 @@ Lexical scoping test:
 Quadratic formula:
 
 ```
-(define quadratic
-  (function (a b c)
+(def quadratic
+  (fn (a b c)
     (/ (+ (negate b)
           (sqrt (- (* b b) (* 4 (* a c)))))
        (* 2 a))))

@@ -82,7 +82,7 @@ module ripple {
                     (acc, key) => [new Symbol("let"), new Symbol(key), mori.get(frame, key), acc],
                     acc,
                     mori.keys(frame)),
-                [new Symbol("function"), this.params.map(x => new Symbol(x)), this.body],
+                [new Symbol("fn"), this.params.map(x => new Symbol(x)), this.body],
                 Cons.toArray(this.locals)));
     }
 
@@ -329,7 +329,7 @@ module ripple {
     defineTypeCheckOp("cons?", isCons);
     defineTypeCheckOp("number?", isNumber);
     defineTypeCheckOp("symbol?", isSymbol);
-    defineTypeCheckOp("function?", isFunction);
+    defineTypeCheckOp("fn?", isFunction);
     defineTypeCheckOp("null?", isNull);
     definePrimitive("not", 1, ([b]) => !b);
     definePrimitive("str", new Arity(0, 1024), args => {
@@ -353,13 +353,13 @@ module ripple {
     defineSpecial("or", new Arity(2, 1024), (exprs, locals) =>
         exprs.some(x => isTruthy(eval(x, locals)))
     );
-    defineSpecial("define", new Arity(2), (exprs, locals) =>
+    defineSpecial("def", new Arity(2), (exprs, locals) =>
         define(symbolId(exprs[0]), eval(exprs[1], locals))
     );
     defineSpecial("let", new Arity(3), (exprs, locals) =>
         eval(exprs[2], consLocals([symbolId(exprs[0])], [eval(exprs[1], locals)], locals))
     );
-    defineSpecial("function", new Arity(2), (exprs, locals) => {
+    defineSpecial("fn", new Arity(2), (exprs, locals) => {
         const params = exprs[0];
         if (isArray(params)) {
             return new Lambda(params.map(symbolId), exprs[1], locals);
