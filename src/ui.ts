@@ -4,7 +4,7 @@ module ui {
     export function dump() {
         console.log(Object.keys(ripple.defines)
             .filter(x => ! ripple.isPrimitive(ripple.defines[x]))
-            .map(x => ripple.format([new ripple.Symbol("def"), new ripple.Symbol(x), ripple.defines[x]]))
+            .map(x => ripple.format(ripple.Cons.of(new ripple.Symbol("def"), new ripple.Symbol(x), ripple.defines[x])))
             .join("\r\n\r\n"));
     }
 
@@ -38,7 +38,8 @@ module ui {
     }
 
     function sub(ast, ignores: string[]) {
-        if (ripple.isArray(ast)) {
+        if (ripple.isCons(ast)) {
+            ast = ripple.Cons.toArray(ast);
             for (let i = 0; i < ast.length; ++i) {
                 if (ripple.isSymbol(ast[i]) // TODO: if it's a let, add symbol to ignore list for further recursions
                     && ignores.indexOf(ast[i].id) < 0
@@ -172,9 +173,9 @@ module ui {
     var atomCount = 0;
 
     function build(ast: any, depth: number): JQuery {
-        if (ripple.isArray(ast)) {
+        if (ripple.isCons(ast)) {
             const d = $("<div></div").addClass("combo combo-" + (depth % 4));
-            ast.forEach(child => d.append(build(child, depth + 1)));
+            ripple.Cons.toArray(ast).forEach(child => d.append(build(child, depth + 1)));
             return d;
         }
 

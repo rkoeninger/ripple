@@ -2,7 +2,6 @@
 module ripple {
 
     type RValue = boolean | number | string | Symbol | Cons | Primitive | Lambda;
-    type IValue = RValue | RValue[]; // also includes values internal to interpreter
 
     function grow<A, B>(initial: A, next: (x: A) => A, check: (x: A) => boolean, select: (x: A) => B): B[] {
         const result = [];
@@ -23,16 +22,27 @@ module ripple {
         }
     }
 
-    class Cons {
-        head: any;
-        tail: any;
-        constructor(head: any, tail: any) {
+    // TODO: create separate Stack class for locals
+    // typechecks only because mori uses 'any' for everything
+
+    export class Cons {
+        head: RValue;
+        tail: RValue;
+        constructor(head: RValue, tail: RValue) {
             this.head = head;
             this.tail = tail;
         }
-        static fromArray = (array: any[]): any => array.reduceRight((tail, head) => new Cons(head, tail), null);
-        static toArray = (c: Cons): any[] => grow(c, x => x.tail, isCons, x => x.head);
+        static of = (...args: RValue[]): RValue => Cons.fromArray(args);
+        static fromArray = (array: RValue[]): RValue => array.reduceRight((tail, head) => new Cons(head, tail), null);
+        static toArray = (c: Cons): RValue[] => grow(c, x => x.tail, isCons, x => x.head);
         toString = (): string => `(${format(this.head)} ${format(this.tail)})`;
+        static map = (c: RValue, f: (x: RValue) => RValue): RValue => {
+            if (isCons(c)) {
+                return new Cons(f(c.head), Cons.map(c.tail, f));
+            } else {
+                return c;
+            }
+        };
     }
 
     export class Symbol {
@@ -79,10 +89,10 @@ module ripple {
         toString = (): string => format(
             mori.reduce(
                 (acc, frame) => mori.reduce(
-                    (acc, key) => [new Symbol("let"), new Symbol(key), mori.get(frame, key), acc],
+                    (acc, key) => Cons.of(new Symbol("let"), new Symbol(key), mori.get(frame, key), acc),
                     acc,
                     mori.keys(frame)),
-                [new Symbol("fn"), this.params.map(x => new Symbol(x)), this.body],
+                Cons.of(new Symbol("fn"), Cons.fromArray(this.params.map(x => new Symbol(x))), this.body),
                 Cons.toArray(this.locals)));
     }
 
@@ -96,16 +106,16 @@ module ripple {
     function isNumber(x: any): x is number { return typeof x === "number"; }
     function isString(x: any): x is string { return typeof x === "string"; }
     export function isSymbol(x: any): x is Symbol { return x instanceof Symbol; }
-    function isCons(x: any): x is Cons { return x instanceof Cons; }
+    export function isCons(x: any): x is Cons { return x instanceof Cons; }
     function isFunction(x: any): x is Function { return x instanceof Lambda || x instanceof Primitive; }
     function isLambda(x: any): x is Lambda { return x instanceof Lambda; }
     export function isPrimitive(x: any): x is Primitive { return x instanceof Primitive; }
-    export function isArray(x: any): x is [] { return Array.isArray(x); }
+    //export function isArray(x: any): x is [] { return Array.isArray(x); }
 
-    export function format(value: IValue): string {
+    export function format(value: RValue): string {
         if (isUndefined(value)) { throw new Error("Can't print undefined value"); }
         if (isNull(value)) { return "null"; }
-        if (isArray(value)) { return `(${value.map(x => format(x)).join(" ")})`; }
+        if (isCons(value)) { return `(${Cons.toArray(value).map(x => format(x)).join(" ")})`; }
         if (isString(value)) { return `"${value}"`; }
         return value.toString();
     }
@@ -158,7 +168,7 @@ module ripple {
                 default: return new Symbol(unparsedLiteral);
             }
         }
-        parseOne(): IValue {
+        parseOne(): RValue {
             this.skipWhiteSpace();
 
             if (this.isDone()) {
@@ -168,7 +178,7 @@ module ripple {
             switch (this.current()) {
                 case '(':
                     this.skipOne(); // Skip over '('
-                    return grow(this.parseOne(), _ => this.parseOne(), isDefined, x => x);
+                    return Cons.fromArray(grow(this.parseOne(), _ => this.parseOne(), isDefined, x => x));
                 case ')':
                     this.skipOne(); // Skip over ')'
                     return undefined;
@@ -179,7 +189,7 @@ module ripple {
                     return this.readLiteral();
             }
         }
-        parseAll(): IValue[] {
+        parseAll(): RValue[] {
             const result = [];
             this.skipWhiteSpace();
 
@@ -191,11 +201,11 @@ module ripple {
         }
     }
 
-    export function parseAllText(text: string): IValue[] {
+    export function parseAllText(text: string): RValue[] {
         return new Source(text).parseAll();
     }
 
-    export function parseOneText(text: string): IValue {
+    export function parseOneText(text: string): RValue {
         return new Source(text).parseOne();
     }
 
@@ -211,7 +221,7 @@ module ripple {
         }
     }
 
-    function symbolId(value: IValue): string {
+    function symbolId(value: RValue): string {
         if (isSymbol(value)) {
             return value.id;
         }
@@ -220,9 +230,9 @@ module ripple {
     }
 
     function symbolLookup(id: string, locals: Cons): RValue {
-        for (; isCons(locals); locals = locals.tail) {
-            if (mori.hasKey(locals.head, id)) {
-                return mori.get(locals.head, id);
+        for (let current: any = locals; isCons(current); current = current.tail) {
+            if (mori.hasKey(current.head, id)) {
+                return mori.get(current.head, id);
             }
         }
 
@@ -292,13 +302,12 @@ module ripple {
         else if (isLambda(f)) { return f.params.length; }
         else { throw new Error("Must be function"); }
     });*/
-    definePrimitive("symbol", 1, args => {
-        const [s] = args;
+    definePrimitive("symbol", 1, ([s]) => {
         if (isString(s)) { return new Symbol(s); }
         else { throw new Error("Must be string"); }
     });
-    definePrimitive("=", 2, args => args[0] === args[1]);
-    definePrimitive("cons", 2, args => new Cons(args[0], args[1]));
+    definePrimitive("=", 2, ([x, y]) => x === y);
+    definePrimitive("cons", 2, ([x, y]) => new Cons(x, y));
     defineConsOp("head", x => x.head);
     defineConsOp("tail", x => x.tail);
     definePrimitive("+", new Arity(0, 1024), args => {
@@ -335,10 +344,11 @@ module ripple {
     definePrimitive("str", new Arity(0, 1024), args => {
         return args.reduce((x, y) => (x || "").toString() + (y || "").toString(), "");
     });
+    definePrimitive("eval", 1, ([expr]) => eval(expr));
 
     const specials = {};
 
-    function defineSpecial(id: string, arity: Arity, f: (exprs: IValue[], locals: Cons) => RValue) {
+    function defineSpecial(id: string, arity: Arity, f: (exprs: RValue[], locals: Cons) => RValue) {
         specials[id] = new Special(id, arity, f);
     }
 
@@ -361,8 +371,8 @@ module ripple {
     );
     defineSpecial("fn", new Arity(2), (exprs, locals) => {
         const params = exprs[0];
-        if (isArray(params)) {
-            return new Lambda(params.map(symbolId), exprs[1], locals);
+        if (isCons(params)) {
+            return new Lambda(Cons.toArray(params).map(symbolId), exprs[1], locals);
         }
 
         throw new Error("Argument list expected at " + format(params));
@@ -384,20 +394,21 @@ module ripple {
         }
     }
 
-    export function eval(expr: IValue, locals: Cons = null): RValue {
-        if (isArray(expr)) {
-            if (expr.length === 0) {
+    export function eval(expr: RValue, locals: Cons = null): RValue {
+        if (isCons(expr)) {
+            let array = Cons.toArray(expr);
+            if (array.length === 0) {
                 return null;
             }
 
-            const [first, ...rest] = expr;
+            const [first, ...rest] = array;
             if (isSymbol(first) && specials.hasOwnProperty(first.id)) {
                 const special = specials[first.id];
                 assertArity(`Special form "${special.id}"`, special.arity, rest.length);
                 return special.f(rest, locals);
             }
 
-            const [firstValue, ...restValues] = expr.map(x => eval(x, locals));
+            const [firstValue, ...restValues] = array.map(x => eval(x, locals));
             return apply(firstValue, restValues);
         }
         else if (isSymbol(expr)) {
