@@ -65,7 +65,8 @@ module ui {
         history.push({
             defines: shallowClone(ripple.defines),
             entries: entries.slice(0),
-            buffer: buffer
+            buffer: buffer,
+            text: $("#input-text").val()
         });
     }
 
@@ -75,10 +76,11 @@ module ui {
             entries = previous.entries;
             ripple.defines = previous.defines;
             buffer = previous.buffer;
+            $("#input-text").val(previous.text);
+            updateEntries();
+            updateDefines();
+            updateBuffer();
         }
-        updateEntries();
-        updateDefines();
-        updateBuffer();
     }
 
     export function runIt(): void {
@@ -117,7 +119,6 @@ module ui {
                 : errorDiv(x.text, x.error.toString()));
             resultsDiv.prepend(results.length === 1 ? results[0] : batchDiv(results));
         });
-        $("#input-text").val(entries.length === 0 ? "" : entries[entries.length - 1].text);
     }
 
     function batchDiv(results): JQuery {
