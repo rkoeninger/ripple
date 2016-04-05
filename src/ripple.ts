@@ -424,6 +424,8 @@ module ripple {
                     paramsArray.map(x => !x.lazy)),
                 body,
                 locals);
+        } else if (isNull(params)) {
+            return new Lambda(new FixedNamedSelectiveArity([], []), body, locals);
         }
 
         throw new Error("Argument list expected at " + format(params));
