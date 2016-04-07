@@ -28,6 +28,7 @@
             $("#undo-button").click(function () { ui.undo(); });
             $("#inline-button").click(function () { ui.inline(); });
             $("#dump-button").click(function () { ui.dump(); });
+            $("#file-select").change(function () { ui.showFile(); });
         });
         </script>
     </head>
@@ -39,6 +40,8 @@
         <button id="inline-button">Inline</button>
         <button id="dump-button">Dump</button>
         <textarea id="buffer-text" rows="4" cols="25" readonly></textarea>
+        <select id="file-select" size="5" style="width: 50px;"></select>
+        <textarea id="file-content" rows="4" cols="25" readonly></textarea>
         <div class="clear"></div>
         <div id="results"></div>
         <div id="defines"></div>

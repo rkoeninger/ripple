@@ -52,11 +52,31 @@ module ui {
         }
     }
 
+    export var files = {};
     export var history = [];
     export var entries = [];
     export var buffer = "";
 
-    ripple.definePrimitive("log", 1, args => { buffer += args[0] + "\r\n"; return null; });
+    ripple.definePrimitive("log", 1, ([s]) => { buffer += s + "\r\n"; return null; });
+    ripple.definePrimitive("slurp", 1, ([name]) => {
+        if (ripple.isString(name)){
+            if (files.hasOwnProperty(name)) {
+                return files[name];
+            }
+    
+            throw new Error("File not found");
+        }
+
+        throw new Error("Name must be a string");
+    });
+    ripple.definePrimitive("spit", 2, ([name, text]) => {
+        if (ripple.isString(name)) {
+            files[name] = text;
+            return null;
+        }
+
+        throw new Error("Name must be a string");
+    });
 
     function shallowClone(x) {
         return jQuery.extend({}, x);
@@ -67,7 +87,8 @@ module ui {
             defines: shallowClone(ripple.defines),
             entries: entries.slice(0),
             buffer: buffer,
-            text: $("#input-text").val()
+            text: $("#input-text").val(),
+            files: shallowClone(files)
         });
     }
 
@@ -77,10 +98,12 @@ module ui {
             entries = previous.entries;
             ripple.defines = previous.defines;
             buffer = previous.buffer;
+            files = previous.files;
             $("#input-text").val(previous.text);
             updateEntries();
             updateDefines();
             updateBuffer();
+            updateFiles();
         }
     }
 
@@ -106,9 +129,27 @@ module ui {
         updateEntries();
         updateDefines();
         updateBuffer();
+        updateFiles();
     }
 
-    export function updateBuffer(): void {
+    export function showFile(): void {
+        const file = $("#file-select").val();
+        $("#file-content").val(files[file]);
+    }
+
+    function updateFiles(): void {
+        const selection = $("#file-select").val();
+        const select = $("#file-select").empty();
+
+        $.each(files, (name, content) => {
+            select.append($("<option></option>").attr("value", name).text(name));
+        });
+
+        select.val(selection);
+        $("#file-content").val(files[selection] ? files[selection] : "");
+    }
+
+    function updateBuffer(): void {
         $("#buffer-text").val(buffer);
     }
 
