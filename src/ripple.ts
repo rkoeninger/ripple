@@ -13,93 +13,6 @@ module ripple {
         return result;
     }
 
-    interface Arity {
-        assertCount(id: string, count: number): void;
-        shouldEval(index: number): boolean;
-        argName(index: number): string;
-    }
-
-    class FixedArity implements Arity {
-        count: number;
-        constructor(count: number) {
-            this.count = count;
-        }
-        assertCount(id: string, count: number) {
-            if (this.count !== count) {
-                throw new Error(`${id} expected ${this.count} args, given ${count}`);
-            }
-        }
-        shouldEval = (index: number) => true;
-        argName = (index: number) => "x" + index.toString();
-    }
-
-    class FixedLazyArity implements Arity {
-        count: number;
-        constructor(count: number) {
-            this.count = count;
-        }
-        assertCount(id: string, count: number) {
-            if (this.count !== count) {
-                throw new Error(`${id} expected ${this.count} args, given ${count}`);
-            }
-        }
-        shouldEval = (index: number) => false;
-        argName = (index: number) => "x" + index.toString();
-    }
-
-    class RangedArity implements Arity {
-        min: number;
-        max: number;
-        constructor(min: number, max: number) {
-            this.min = min;
-            this.max = max;
-        }
-        static atMost = (max: number) => new RangedArity(0, max);
-        static atLeast = (min: number) => new RangedArity(min, 1024);
-        static wide = new RangedArity(0, 1024);
-        assertCount(id: string, count: number) {
-            if (count < this.min || count > this.max) {
-                throw new Error(`${id} expected at least ${this.min} or at most ${this.max} args, given ${count}`);
-            }
-        }
-        shouldEval = (index: number) => true;
-        argName = (index: number) => "x" + index.toString();
-    }
-
-    class RangedSelectiveArity implements Arity {
-        min: number;
-        max: number;
-        f: (x: number) => boolean;
-        constructor(min: number, max: number, f: (x: number) => boolean) {
-            this.min = min;
-            this.max = max;
-            this.f = f;
-        }
-        assertCount(id: string, count: number) {
-            if (count < this.min || count > this.max) {
-                throw new Error(`${id} expected at least ${this.min} or at most ${this.max} args, given ${count}`);
-            }
-        }
-        shouldEval = (index: number) => this.f(index);
-        argName = (index: number) => "x" + index.toString();
-    }
-
-    class FixedNamedSelectiveArity implements Arity {
-        names: string[];
-        evals: boolean[];
-        constructor(names: string[], evals: boolean[]) {
-            this.names = names;
-            this.evals = evals;
-        }
-        assertCount(id: string, count: number) {
-            if (this.names.length !== count) {
-                throw new Error(`${id} expected ${this.names.length} args, given ${count}`);
-            }
-        }
-        shouldEval = (index: number) => this.evals[index];
-        argName = (index: number) => this.names[index];
-    }
-
     // TODO: create separate Stack class for locals
     // typechecks only because mori uses 'any' for everything
 
@@ -112,7 +25,7 @@ module ripple {
         }
         static of = (...args: RValue[]): RValue => Cons.fromArray(args);
         static fromArray = (array: RValue[]): RValue => array.reduceRight((tail, head) => new Cons(head, tail), null);
-        static toArray = (c: Cons): RValue[] => grow(c, x => x.tail, isCons, x => x.head);
+        static toArray = (c: RValue): RValue[] => grow(c, x => x.tail, isCons, x => x.head);
         toString = (): string => `(${format(this.head)} ${format(this.tail)})`;
         static map = (c: RValue, f: (x: RValue) => RValue): RValue => {
             if (isCons(c)) {
@@ -131,11 +44,27 @@ module ripple {
         toString = (): string => this.id;
     }
 
+    type PrimitiveFn = (args: RValue[]) => RValue;
+
     class Primitive {
         id: string;
-        arity: Arity;
-        f: (args: RValue[], locals: Cons) => RValue;
-        constructor(id: string, arity: Arity, f: (args: RValue[], locals: Cons) => RValue) {
+        arity: number;
+        f: PrimitiveFn;
+        constructor(id: string, arity: number, f: PrimitiveFn) {
+            this.id = id;
+            this.arity = arity;
+            this.f = f;
+        }
+        toString = (): string => this.id;
+    }
+
+    type SpecialFn = (exprs: RValue[], locals: Cons) => RValue;
+
+    class Special {
+        id: string;
+        arity: number;
+        f: SpecialFn;
+        constructor(id: string, arity: number, f: SpecialFn) {
             this.id = id;
             this.arity = arity;
             this.f = f;
@@ -145,13 +74,16 @@ module ripple {
 
     class Lambda {
         id = "Function";
-        arity: FixedNamedSelectiveArity;
+        params: string[];
         body: RValue;
         locals: Cons;
-        constructor(arity: FixedNamedSelectiveArity, body: RValue, locals: Cons) {
-            this.arity = arity;
+        constructor(params: string[], body: RValue, locals: Cons) {
+            this.params = params;
             this.body = body;
             this.locals = locals;
+        }
+        get arity() {
+            return this.params.length;
         }
         toString = (): string => format(
             mori.reduce(
@@ -159,7 +91,7 @@ module ripple {
                     (acc, key) => Cons.of(new Symbol("let"), new Symbol(key), mori.get(frame, key), acc),
                     acc,
                     mori.keys(frame)),
-                Cons.of(new Symbol("fn"), Cons.fromArray(this.arity.names.map((x, i) => new Symbol(this.arity.evals[i] ? x : '&' + x))), this.body),
+                Cons.of(new Symbol("fn"), Cons.fromArray(this.params.map(x => new Symbol(x))), this.body),
                 Cons.toArray(this.locals)));
     }
 
@@ -311,40 +243,41 @@ module ripple {
         return c;
     }
 
-    export var defines = {};
+    interface Defines {
+        [key: string]: RValue;
+    }
+
+    export var defines: Defines = {};
 
     function define(id: string, value: RValue): RValue {
         defines[id] = value;
         return value;
     }
 
-    export function definePrimitive(id: string, arity: number | Arity, f: (args: RValue[], locals: Cons) => RValue): RValue {
-        return define(id, new Primitive(id, isNumber(arity) ? new FixedArity(arity) : arity, f));
+    export function definePrimitive(id: string, arity: number, f: PrimitiveFn): RValue {
+        return define(id, new Primitive(id, arity, f));
     }
 
     function defineNumBinOp<A extends RValue>(id: string, f: (x: number, y: number) => A) {
-        definePrimitive(id, 2, args => {
-            const [x, y] = args;
+        definePrimitive(id, 2, ([x, y]) => {
             if (isNumber(x) && isNumber(y)) { return f(x, y); }
             else { throw new Error("Must be numbers"); }
         });
     }
 
     function defineNumUnOp(id: string, f: (x: number) => number) {
-        definePrimitive(id, 1, args => {
-            const [x] = args;
+        definePrimitive(id, 1, ([x]) => {
             if (isNumber(x)) { return f(x); }
             else { throw new Error("Must be a number"); }
         });
     }
 
     function defineTypeCheckOp(id: string, f: (x: any) => boolean) {
-        definePrimitive(id, 1, args => f(args[0]));
+        definePrimitive(id, 1, ([x]) => f(x));
     }
 
     function defineConsOp(id: string, f: (x: Cons) => RValue) {
-        definePrimitive(id, 1, args => {
-            const [c] = args;
+        definePrimitive(id, 1, ([c]) => {
             if (isCons(c)) { return f(c); }
             else { throw new Error("Must be Cons"); }
         });
@@ -358,20 +291,8 @@ module ripple {
     definePrimitive("cons", 2, ([x, y]) => new Cons(x, y));
     defineConsOp("head", x => x.head);
     defineConsOp("tail", x => x.tail);
-    definePrimitive("+", RangedArity.wide, args => {
-        if (! args.every(isNumber)) {
-            throw new Error("args must be numbers");
-        } else {
-            return mori.reduce(mori.sum, args);
-        }
-    });
-    definePrimitive("*", RangedArity.wide, args => {
-        if (!args.every(isNumber)) {
-            throw new Error("args must be numbers");
-        } else {
-            return mori.reduce((x, y) => x * y, args);
-        }
-    });
+    defineNumBinOp<number>("+", (x, y) => x + y);
+    defineNumBinOp<number>("*", (x, y) => x - y);
     defineNumBinOp<number>("-", (x, y) => x - y);
     defineNumBinOp<number>("/", (x, y) => x / y);
     defineNumBinOp<number>("mod", (x, y) => x % y);
@@ -389,72 +310,58 @@ module ripple {
     defineTypeCheckOp("fn?", isFunction);
     defineTypeCheckOp("null?", isNull);
     definePrimitive("not", 1, ([b]) => !b);
-    definePrimitive("str", RangedArity.wide, args => {
-        return args.reduce((x, y) => (x || "").toString() + (y || "").toString(), "");
-    });
+    definePrimitive("str", 2, ([x, y]) => (x || "").toString() + (y || "").toString());
     definePrimitive("eval", 1, ([expr]) => eval(expr));
-    definePrimitive("eval-here", 1, ([expr], locals) => eval(expr, locals));
 
-    function defineSpecial(id: string, arity: Arity, f: (exprs: RValue[], locals: Cons) => RValue) {
-        defines[id] = new Primitive(id, arity, f);
+    interface Specials {
+        [key: string]: Special;
     }
 
-    defineSpecial("if", new RangedSelectiveArity(2, 3, x => x === 0), (exprs, locals) =>
-        isTruthy(exprs[0])
-            ? eval(exprs[1], locals)
-            : (exprs.length === 3 ? eval(exprs[2], locals) : null)
+    var specials: Specials = {};
+
+    function defineSpecial(id: string, arity: number, f: SpecialFn) {
+        specials[id] = new Special(id, arity, f);
+    }
+
+    defineSpecial("if", 3, ([condition, ifTrue, ifFalse], locals) =>
+        isTruthy(eval(condition, locals)) ? eval(ifTrue, locals) : eval(ifFalse, locals)
     );
-    defineSpecial("def", new RangedSelectiveArity(2, 2, x => x === 1), ([sym, value], locals) =>
-        define(symbolId(sym), value)
+    defineSpecial("def", 2, ([sym, value], locals) =>
+        define(symbolId(sym), eval(value, locals))
     );
-    defineSpecial("let", new RangedSelectiveArity(3, 3, x => x === 1), ([sym, value, body], locals) =>
-        eval(body, consLocals([symbolId(sym)], [value], locals))
+    defineSpecial("let", 3, ([sym, value, body], locals) =>
+        eval(body, consLocals([symbolId(sym)], [eval(value, locals)], locals))
     );
-    defineSpecial("fn", new RangedSelectiveArity(2, 2, _ => false), ([params, body], locals) => {
+    defineSpecial("fn", 2, ([params, body], locals) => {
         if (isCons(params)) {
-            const paramsArray = Cons.toArray(params).map(x => {
-                const s = symbolId(x);
-                const l = s[0] === '&';
-                const n = l ? s.substr(1) : s;
-                return { name: n, lazy: l };
-            });
-            return new Lambda(
-                new FixedNamedSelectiveArity(
-                    paramsArray.map(x => x.name),
-                    paramsArray.map(x => !x.lazy)),
-                body,
-                locals);
+            return new Lambda(Cons.toArray(params).map(symbolId), body, locals);
         } else if (isNull(params)) {
-            return new Lambda(new FixedNamedSelectiveArity([], []), body, locals);
+            return new Lambda([], body, locals);
         }
 
         throw new Error("Argument list expected at " + format(params));
     });
 
     function apply(operator: RValue, operands: RValue[], locals: Cons = null): RValue {
-        if (!isFunction(operator)) {
-            throw new Error(`First item in an application must be a function, but instead: ${format(operator)}`);
-        } else {
-            const evaledOperands = operands.map((x, i) => operator.arity.shouldEval(i) ? eval(x, locals) : x);
-            operator.arity.assertCount(operator.id, operands.length);
-
-            if (isPrimitive(operator)) {
-                // Primitives get applied as if their body was in the calling scope
-                // because some primitives are the special forms like `let` and `if`
-                // that need to retain the calling scope
-                return operator.f(evaledOperands, locals);
-            }
-            else if (isLambda(operator)) {
-                // Lambdas get applied in the context that they were declared (scope capture)
-                return eval(operator.body, consLocals(operator.arity.names, evaledOperands, operator.locals));
-            }
+        if (isPrimitive(operator)) {
+            return operator.f(operands);
         }
+        else if (isLambda(operator)) {
+            return eval(operator.body, consLocals(operator.params, operands, operator.locals));
+        }
+
+        throw new Error(`First item in an application must be a function, but instead: ${format(operator)}`);
     }
 
     export function eval(expr: RValue, locals: Cons = null): RValue {
         if (isCons(expr)) {
-            const [operator, ...operands] = Cons.toArray(expr);
-            return apply(eval(operator, locals), operands, locals);
+            const head = expr.head;
+            if (isSymbol(head) && specials.hasOwnProperty(symbolId(head))) {
+                return specials[head.id].f(Cons.toArray(expr.tail), locals);
+            }
+
+            const [operator, ...operands] = Cons.toArray(expr).map(x => eval(x, locals));
+            return apply(operator, operands, locals);
         }
         else if (isSymbol(expr)) {
             return symbolLookup(expr.id, locals);
