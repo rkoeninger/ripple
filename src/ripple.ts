@@ -112,7 +112,7 @@ module ripple {
 
     export function format(value: RValue): string {
         if (isUndefined(value)) { throw new Error("Can't print undefined value"); }
-        if (isNull(value)) { return "null"; }
+        if (isNull(value)) { return "()"; }
         if (isCons(value)) { return `(${Cons.toArray(value).map(x => format(x)).join(" ")})`; }
         if (isString(value)) { return `"${value}"`; }
         return value.toString();
@@ -162,7 +162,6 @@ module ripple {
             switch (unparsedLiteral) {
                 case "false": return false;
                 case "true": return true;
-                case "null": return null;
                 default: return new Symbol(unparsedLiteral);
             }
         }
