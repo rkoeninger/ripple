@@ -291,7 +291,7 @@ module ripple {
     defineConsOp("head", x => x.head);
     defineConsOp("tail", x => x.tail);
     defineNumBinOp<number>("+", (x, y) => x + y);
-    defineNumBinOp<number>("*", (x, y) => x - y);
+    defineNumBinOp<number>("*", (x, y) => x * y);
     defineNumBinOp<number>("-", (x, y) => x - y);
     defineNumBinOp<number>("/", (x, y) => x / y);
     defineNumBinOp<number>("mod", (x, y) => x % y);
@@ -343,9 +343,15 @@ module ripple {
 
     function apply(operator: RValue, operands: RValue[], locals: Cons = null): RValue {
         if (isPrimitive(operator)) {
+            if (operator.arity !== operands.length) {
+                throw new Error(`${operator.id} expected ${operator.arity} arguments but was given ${operands.length}`);
+            }
             return operator.f(operands);
         }
         else if (isLambda(operator)) {
+            if (operator.arity !== operands.length) {
+                throw new Error(`${operator.id} expected ${operator.arity} arguments but was given ${operands.length}`);
+            }
             return eval(operator.body, consLocals(operator.params, operands, operator.locals));
         }
 
@@ -356,7 +362,12 @@ module ripple {
         if (isCons(expr)) {
             const head = expr.head;
             if (isSymbol(head) && specials.hasOwnProperty(symbolId(head))) {
-                return specials[head.id].f(Cons.toArray(expr.tail), locals);
+                const special = specials[head.id];
+                const operands = Cons.toArray(expr.tail);
+                if (special.arity !== operands.length) {
+                    throw new Error(`${special.id} form expected ${special.arity} arguments but was given ${operands.length}`);
+                }
+                return special.f(operands, locals);
             }
 
             const [operator, ...operands] = Cons.toArray(expr).map(x => eval(x, locals));
