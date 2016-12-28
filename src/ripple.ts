@@ -1,7 +1,7 @@
 
 module ripple {
 
-    type RValue = boolean | number | string | Symbol | Cons | Primitive | Lambda;
+    export type RValue = boolean | number | string | Symbol | Cons | Primitive | Lambda;
 
     function grow<A, B>(initial: A, next: (x: A) => A, check: (x: A) => boolean, select: (x: A) => B): B[] {
         const result = [];

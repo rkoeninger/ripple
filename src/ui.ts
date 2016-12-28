@@ -33,23 +33,25 @@ module ui {
     export function inline(): void {
         const inputText = $("#input-text");
         const ast = ripple.parseOneText(inputText.val());
-        sub(ast, []);
-        inputText.val(ripple.format(ast));
+        const inlinedAst = subExpr(ast, []);
+        inputText.val(ripple.format(inlinedAst));
     }
 
-    function sub(ast, ignores: string[]) {
+    function subExpr(ast: ripple.RValue, ignores: string[]): ripple.RValue {
         if (ripple.isCons(ast)) {
-            ast = ripple.Cons.toArray(ast);
-            for (let i = 0; i < ast.length; ++i) {
-                if (ripple.isSymbol(ast[i]) // TODO: if it's a let, add symbol to ignore list for further recursions
-                    && ignores.indexOf(ast[i].id) < 0
-                    && ripple.defines.hasOwnProperty(ast[i].id)) {
-                    ast[i] = ripple.defines[ast[i].id];
-                } else {
-                    sub(ast[i], ignores);
+            return ripple.Cons.map(ast, x => subExpr(x, ignores));
+        } else if (ripple.isSymbol(ast)) {
+            if (!(ast.id == "if" || ast.id == "def" || ast.id == "fn" || ast.id == "let")
+               && ignores.indexOf(ast.id) < 0
+               && ripple.defines.hasOwnProperty(ast.id)) {
+                const val = ripple.defines[ast.id];
+                if (! ripple.isPrimitive(val)) {
+                    return val;
                 }
             }
         }
+
+        return ast;
     }
 
     export var files = {};
